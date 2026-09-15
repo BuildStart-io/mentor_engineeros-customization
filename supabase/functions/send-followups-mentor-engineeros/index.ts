@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const supabase = createClient(supabaseUrl, serviceKey);
+  const supabase = createClient(supabaseUrl, serviceKey, { db: { schema: 'mentor_engineeros_customization' } });
 
   const summary: Record<string, unknown>[] = [];
 
@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
         if (takeover?.is_taken_over) continue;
 
         try {
-          const res = await fetch(`${supabaseUrl}/functions/v1/send-whatsapp`, {
+          const res = await fetch(`${supabaseUrl}/functions/v1/send-whatsapp-mentor-engineeros`, {
             method: "POST",
             headers: {
               Authorization: `Bearer ${serviceKey}`,

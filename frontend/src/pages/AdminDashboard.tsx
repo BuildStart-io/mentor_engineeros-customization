@@ -35,7 +35,7 @@ export default function AdminDashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const res = await supabase.functions.invoke("admin-manage-users", {
+      const res = await supabase.functions.invoke("admin-manage-users-mentor-engineeros", {
         body: { action: "list_users" },
       });
 

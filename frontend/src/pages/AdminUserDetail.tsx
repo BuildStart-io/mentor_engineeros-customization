@@ -64,7 +64,7 @@ export default function AdminUserDetail() {
       return;
     }
     setPasswordSaving(true);
-    const res = await supabase.functions.invoke("admin-manage-users", {
+    const res = await supabase.functions.invoke("admin-manage-users-mentor-engineeros", {
       body: { action: "change_password", userId, newPassword },
     });
     setPasswordSaving(false);
@@ -90,7 +90,7 @@ export default function AdminUserDetail() {
 
   const fetchDetails = async () => {
     setLoading(true);
-    const res = await supabase.functions.invoke("admin-manage-users", {
+    const res = await supabase.functions.invoke("admin-manage-users-mentor-engineeros", {
       body: { action: "get_user_details", userId },
     });
     if (res.data) setDetailData(res.data);
@@ -117,7 +117,7 @@ export default function AdminUserDetail() {
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const res = await supabase.functions.invoke("admin-manage-users", {
+    const res = await supabase.functions.invoke("admin-manage-users-mentor-engineeros", {
       body: {
         action: editingProduct ? "update_product" : "create_product",
         userId,
@@ -145,7 +145,7 @@ export default function AdminUserDetail() {
 
   const handleDeleteProduct = async (productId: string) => {
     if (!confirm("Delete this product?")) return;
-    const res = await supabase.functions.invoke("admin-manage-users", {
+    const res = await supabase.functions.invoke("admin-manage-users-mentor-engineeros", {
       body: { action: "delete_product", userId, productId },
     });
     if (!res.data?.error) {
@@ -171,7 +171,7 @@ export default function AdminUserDetail() {
   const handleSaveFaq = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const res = await supabase.functions.invoke("admin-manage-users", {
+    const res = await supabase.functions.invoke("admin-manage-users-mentor-engineeros", {
       body: {
         action: editingFaq ? "update_faq" : "create_faq",
         userId,
@@ -197,7 +197,7 @@ export default function AdminUserDetail() {
 
   const handleDeleteFaq = async (faqId: string) => {
     if (!confirm("Delete this FAQ?")) return;
-    const res = await supabase.functions.invoke("admin-manage-users", {
+    const res = await supabase.functions.invoke("admin-manage-users-mentor-engineeros", {
       body: { action: "delete_faq", userId, faqId },
     });
     if (!res.data?.error) {

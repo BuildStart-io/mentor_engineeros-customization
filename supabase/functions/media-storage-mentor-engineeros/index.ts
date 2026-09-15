@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
-import { AwsClient } from "https://esm.sh/aws4fetch@1.0.20";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,17 +7,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-
-const ENDPOINT = (Deno.env.get("MINIO_ENDPOINT") || "").replace(/\/+$/, "");
-const PUBLIC_URL = (Deno.env.get("MINIO_PUBLIC_URL") || ENDPOINT).replace(/\/+$/, "");
-const REGION = Deno.env.get("MINIO_REGION") || "us-east-1";
-
-const aws = new AwsClient({
-  accessKeyId: Deno.env.get("MINIO_ACCESS_KEY") || "",
-  secretAccessKey: Deno.env.get("MINIO_SECRET_KEY") || "",
-  service: "s3",
-  region: REGION,
-});
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -39,35 +27,16 @@ function json(body: unknown, status = 200) {
   });
 }
 
-async function ensureBucket(bucket: string) {
-  const head = await aws.fetch(`${ENDPOINT}/${bucket}`, { method: "HEAD" });
-  if (head.status === 404) {
-    const created = await aws.fetch(`${ENDPOINT}/${bucket}`, { method: "PUT" });
-    if (!created.ok && created.status !== 409) {
-      throw new Error(`Bucket create failed (${created.status}): ${await created.text()}`);
+async function ensureBucket(admin: any, bucket: string) {
+  const { data: bData, error: bErr } = await admin.storage.getBucket(bucket);
+  if (bErr || !bData) {
+    const { error: createErr } = await admin.storage.createBucket(bucket, {
+      public: true,
+      fileSizeLimit: MAX_BYTES,
+    });
+    if (createErr) {
+      console.warn(`Bucket creation issue for ${bucket}:`, createErr.message);
     }
-  } else if (!head.ok && head.status !== 403) {
-    throw new Error(`Bucket check failed (${head.status})`);
-  }
-
-  const policy = {
-    Version: "2012-10-17",
-    Statement: [
-      {
-        Effect: "Allow",
-        Principal: { AWS: ["*"] },
-        Action: ["s3:GetObject"],
-        Resource: [`arn:aws:s3:::${bucket}/*`],
-      },
-    ],
-  };
-  const res = await aws.fetch(`${ENDPOINT}/${bucket}?policy=`, {
-    method: "PUT",
-    body: JSON.stringify(policy),
-    headers: { "Content-Type": "application/json" },
-  });
-  if (!res.ok) {
-    console.warn(`Policy set failed for ${bucket} [${res.status}]: ${(await res.text()).slice(0, 200)}`);
   }
 }
 
@@ -77,12 +46,12 @@ async function resolveOwner(req: Request): Promise<{ ownerId: string; userId: st
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();
   if (!token) return null;
 
-  const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { db: { schema: 'mentor_engineeros_customization' } });
   const { data, error } = await authClient.auth.getClaims(token);
   const userId = (data as any)?.claims?.sub;
   if (error || !userId) return null;
 
-  const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+  const admin = createClient(SUPABASE_URL, SERVICE_KEY, { db: { schema: 'mentor_engineeros_customization' } });
   const { data: staff } = await admin
     .from("staff_accounts")
     .select("owner_id")
@@ -97,14 +66,13 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    if (!ENDPOINT) throw new Error("MINIO_ENDPOINT not configured");
-
     const url = new URL(req.url);
     const action = url.searchParams.get("action") || "upload";
 
     const auth = await resolveOwner(req);
     if (!auth) return json({ error: "Unauthorized" }, 401);
 
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY, { db: { schema: 'mentor_engineeros_customization' } });
     const ownedBuckets = [bucketFor(auth.ownerId), bucketFor(auth.ownerId, "faq")];
 
     if (action === "upload") {
@@ -116,7 +84,7 @@ serve(async (req) => {
       if (file.size > MAX_BYTES) return json({ error: "File exceeds 50MB limit" }, 400);
 
       const bucket = bucketFor(auth.ownerId, folderRaw);
-      await ensureBucket(bucket);
+      await ensureBucket(admin, bucket);
 
       const ext = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "");
       let key = "";
@@ -126,37 +94,64 @@ serve(async (req) => {
       } else {
         key = `${folderRaw}/${crypto.randomUUID()}.${ext}`;
       }
-      const body = new Uint8Array(await file.arrayBuffer());
+      
+      const body = await file.arrayBuffer();
+      
+      let mimeType = file.type || "application/octet-stream";
+      if (!mimeType || mimeType === "application/octet-stream") {
+        if (ext === "mp4") mimeType = "video/mp4";
+        else if (ext === "webm") mimeType = "video/webm";
+        else if (ext === "mov") mimeType = "video/quicktime";
+        else if (ext === "png") mimeType = "image/png";
+        else if (ext === "jpg" || ext === "jpeg") mimeType = "image/jpeg";
+        else if (ext === "webp") mimeType = "image/webp";
+      }
+      
+      const { data: uploadData, error: uploadError } = await admin.storage
+        .from(bucket)
+        .upload(key, body, {
+          contentType: mimeType,
+          upsert: true
+        });
 
-      const put = await aws.fetch(`${ENDPOINT}/${bucket}/${key}`, {
-        method: "PUT",
-        body,
-        headers: { "Content-Type": file.type || "application/octet-stream" },
-      });
-      if (!put.ok) {
-        const text = await put.text();
-        console.error(`Upload failed [${put.status}]: ${text.slice(0, 300)}`);
-        return json({ error: `Upload failed (${put.status})`, details: text.slice(0, 300) }, put.status);
+      if (uploadError) {
+        console.error(`Upload failed: ${uploadError.message}`);
+        return json({ error: `Upload failed`, details: uploadError.message }, 400);
       }
 
-      const publicUrl = `${PUBLIC_URL}/${bucket}/${key}`;
-      console.log(`Uploaded ${publicUrl} (${body.length} bytes)`);
+      const { data: publicData } = admin.storage.from(bucket).getPublicUrl(key);
+      const publicUrl = publicData.publicUrl.replace(
+        SUPABASE_URL,
+        "https://supabase.buildstart.io"
+      );
+      console.log(`Uploaded ${publicUrl} (${body.byteLength} bytes)`);
+      
       return json({ url: publicUrl, key, bucket });
     }
 
     if (action === "delete") {
       const { url: fileUrl } = await req.json();
-      const owning = typeof fileUrl === "string"
-        ? ownedBuckets.find((b) => fileUrl.startsWith(`${PUBLIC_URL}/${b}/`) || fileUrl.startsWith(`${ENDPOINT}/${b}/`))
-        : undefined;
-      if (!owning) {
-        return json({ error: "Invalid or forbidden file URL" }, 400);
+      
+      // Attempt to extract bucket and key from the Supabase public URL
+      let owningBucket = "";
+      let owningKey = "";
+      
+      for (const b of ownedBuckets) {
+        const marker = `/storage/v1/object/public/${b}/`;
+        if (typeof fileUrl === "string" && fileUrl.includes(marker)) {
+          owningBucket = b;
+          owningKey = fileUrl.split(marker)[1];
+          break;
+        }
       }
-      const prefix = fileUrl.startsWith(`${PUBLIC_URL}/`) ? `${PUBLIC_URL}/${owning}/` : `${ENDPOINT}/${owning}/`;
-      const key = fileUrl.slice(prefix.length);
-      const del = await aws.fetch(`${ENDPOINT}/${owning}/${key}`, { method: "DELETE" });
-      if (!del.ok && del.status !== 404) {
-        return json({ error: `Delete failed (${del.status})` }, del.status);
+      
+      if (!owningBucket || !owningKey) {
+         return json({ error: "Invalid or forbidden file URL" }, 400);
+      }
+      
+      const { error: delError } = await admin.storage.from(owningBucket).remove([owningKey]);
+      if (delError) {
+        return json({ error: `Delete failed`, details: delError.message }, 400);
       }
       return json({ success: true });
     }
@@ -164,7 +159,7 @@ serve(async (req) => {
     if (action === "ensure-bucket") {
       const folder = url.searchParams.get("folder") || "products";
       const bucket = bucketFor(auth.ownerId, folder);
-      await ensureBucket(bucket);
+      await ensureBucket(admin, bucket);
       return json({ success: true, bucket });
     }
 

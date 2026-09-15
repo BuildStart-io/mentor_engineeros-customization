@@ -224,7 +224,7 @@ export default function Orders() {
         sessionApiKey = (sessionData as any)?.session_api_key || (sessionData as any)?.session_id || `u_${user.id.replace(/-/g, "").substring(0, 20)}`;
       }
 
-      const { data, error } = await supabase.functions.invoke("send-whatsapp", {
+      const { data, error } = await supabase.functions.invoke("send-whatsapp-mentor-engineeros", {
         body: {
           to: phone,
           message: message,

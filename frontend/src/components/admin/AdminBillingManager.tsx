@@ -59,7 +59,7 @@ export default function AdminBillingManager({ userId, profile, onUpdate }: Props
 
   const handleSave = async () => {
     setSaving(true);
-    const res = await supabase.functions.invoke("admin-manage-users", {
+    const res = await supabase.functions.invoke("admin-manage-users-mentor-engineeros", {
       body: {
         action: "update_user",
         userId,
@@ -83,7 +83,7 @@ export default function AdminBillingManager({ userId, profile, onUpdate }: Props
     const today = new Date().toISOString().split("T")[0];
     setBillingStart(today);
     setSaving(true);
-    const res = await supabase.functions.invoke("admin-manage-users", {
+    const res = await supabase.functions.invoke("admin-manage-users-mentor-engineeros", {
       body: {
         action: "update_user",
         userId,
