@@ -4,3 +4,5 @@ dist/
 .DS_Store
 *.log
 .gemini/
+db/dump.sql
+scratch/

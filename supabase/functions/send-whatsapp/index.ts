@@ -22,14 +22,78 @@ function toChatId(to: string): string {
   // Accept "+9477...", "9477...", "9477...@c.us", group "...@g.us", or a privacy "@lid" id
   if (!to) return "";
   if (to.includes("@")) return to;
-  const digits = String(to).replace(/\D/g, "");
+  let digits = String(to).replace(/\D/g, "");
   if (!digits) return "";
+  // If Sri Lankan local mobile number with leading 0 (e.g. 0740237915 -> 94740237915)
+  if (digits.length === 10 && digits.startsWith("0")) {
+    digits = "94" + digits.slice(1);
+  }
   // WhatsApp privacy identifiers are 15+ digits and are NOT phone numbers —
   // sending them as @c.us silently goes nowhere.
   if (digits.length >= 15) return `${digits}@lid`;
   return `${digits}@c.us`;
 }
 
+function decodeJwtPayload(token: string): any {
+  try {
+    const base64Url = token.split(".")[1];
+    if (!base64Url) return null;
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(base64));
+  } catch {
+    return null;
+  }
+}
+
+async function resolveSessionName(
+  explicitSession?: string,
+  authHeader?: string | null
+): Promise<string> {
+  // 1. Explicitly provided non-default session
+  if (explicitSession && explicitSession.trim() && explicitSession !== "default") {
+    return explicitSession.trim();
+  }
+
+  // 2. Derive deterministic session from user's JWT
+  if (authHeader) {
+    try {
+      const token = authHeader.replace(/^Bearer\s+/i, "");
+      const payload = decodeJwtPayload(token);
+      const userId = payload?.sub;
+      if (userId) {
+        const derived = `u_${userId.replace(/-/g, "").substring(0, 20)}`;
+        // Check if session exists in WAHA
+        const chk = await fetch(`${WAHA_BASE}/api/sessions/${derived}`, {
+          headers: { "X-Api-Key": WAHA_KEY, Accept: "application/json" },
+        }).catch(() => null);
+        if (chk && chk.ok) {
+          return derived;
+        }
+      }
+    } catch (e) {
+      console.warn("Could not derive session from JWT:", e);
+    }
+  }
+
+  // 3. Fallback: Query WAHA for any active WORKING session
+  try {
+    const listRes = await fetch(`${WAHA_BASE}/api/sessions?all=false`, {
+      headers: { "X-Api-Key": WAHA_KEY, Accept: "application/json" },
+    });
+    if (listRes.ok) {
+      const sessions = await listRes.json();
+      if (Array.isArray(sessions) && sessions.length > 0) {
+        const working = sessions.find((s: any) => s.status === "WORKING");
+        if (working?.name) return working.name;
+        if (sessions[0]?.name) return sessions[0].name;
+      }
+    }
+  } catch (e) {
+    console.warn("Could not query WAHA active sessions:", e);
+  }
+
+  return Deno.env.get("WAHA_DEFAULT_SESSION") || "default";
+}
 
 function filenameFromUrl(url: string): string {
   try {
@@ -60,7 +124,8 @@ serve(async (req) => {
   }
 
   try {
-    const { to, message, sessionApiKey, imageUrl, mediaUrl, mediaType: explicitType } = await req.json();
+    const body = await req.json();
+    const { to, message, sessionApiKey, sessionId, sessionName: customSession, imageUrl, mediaUrl, mediaType: explicitType } = body;
 
     if (!to || (!message && !imageUrl && !mediaUrl)) {
       return new Response(
@@ -69,8 +134,9 @@ serve(async (req) => {
       );
     }
 
-    // `sessionApiKey` is now the WAHA session name (kept variable name for back-compat with callers).
-    const sessionName = sessionApiKey || Deno.env.get("WAHA_DEFAULT_SESSION") || "default";
+    const authHeader = req.headers.get("authorization");
+    const rawSession = sessionApiKey || sessionId || customSession;
+    const sessionName = await resolveSessionName(rawSession, authHeader);
     const chatId = toChatId(to);
     const url = mediaUrl || imageUrl;
     const detectedType = explicitType || (url ? detectMediaType(url) : null);
@@ -80,8 +146,10 @@ serve(async (req) => {
     let res: Response;
 
     if (url) {
-      const fileName = filenameFromUrl(url);
-      const file = { url, filename: fileName, mimetype: undefined as string | undefined };
+      // If media URL points to localhost:9000, rewrite to minio:9000 so WAHA can fetch it inside Docker network
+      const wahaUrl = url.replace(/^http:\/\/(localhost|127\.0\.0\.1):9000\b/, "http://minio:9000");
+      const fileName = filenameFromUrl(wahaUrl);
+      const file = { url: wahaUrl, filename: fileName, mimetype: undefined as string | undefined };
       const caption = message || "";
 
       switch (detectedType) {

@@ -473,8 +473,9 @@ CREATE TABLE public.orders (
     user_id uuid NOT NULL,
     whatsapp_phone text,
     district text,
+    custom_fields jsonb DEFAULT '{}'::jsonb,
     CONSTRAINT orders_payment_method_check CHECK ((payment_method = ANY (ARRAY['cod'::text, 'bank_transfer'::text]))),
-    CONSTRAINT orders_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'processing'::text, 'shipped'::text, 'delivered'::text, 'cancelled'::text])))
+    CONSTRAINT orders_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'processing'::text, 'shipped'::text, 'delivered'::text, 'cancelled'::text, 'confirmed'::text, 'received'::text, 'in_progress'::text, 'finished'::text])))
 );
 
 

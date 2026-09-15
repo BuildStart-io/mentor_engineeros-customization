@@ -281,13 +281,42 @@ export default function Settings() {
       setQrImage(image);
       setQrCode(qr);
 
-      if (returnedStatus === "connected") {
+      let finalImage = image;
+      let finalQr = qr;
+      let finalStatus = returnedStatus;
+
+      // If QR code is not ready yet because WAHA is starting, poll a few times
+      if (!finalImage && !finalQr && returnedStatus !== "connected") {
+        for (let attempt = 0; attempt < 6; attempt++) {
+          await new Promise((r) => setTimeout(r, 2500));
+          try {
+            const pollRes = await fetch(`${baseUrl}?action=get-qr&sessionId=${sessionId}`, {
+              headers: authHeaders,
+            });
+            if (pollRes.ok) {
+              const pollData = await pollRes.json();
+              finalImage = pollData.data?.qrImage || pollData.qrImage || null;
+              finalQr = pollData.data?.qrCode || pollData.qrCode || pollData.data?.qr || null;
+              finalStatus = pollData.data?.status || pollData.status;
+              if (finalImage || finalQr || finalStatus === "connected") {
+                setQrImage(finalImage);
+                setQrCode(finalQr);
+                break;
+              }
+            }
+          } catch {}
+        }
+      }
+
+      if (finalStatus === "connected") {
+        setQrImage(null);
+        setQrCode(null);
         toast({ title: "WhatsApp connected", description: "This session is already linked." });
         await fetchSessions();
-      } else if (!image && !qr) {
+      } else if (!finalImage && !finalQr) {
         toast({
-          title: "QR code is not ready yet",
-          description: "WAHA is still starting the session. Wait a moment and try Refresh QR Code.",
+          title: "QR code is still loading",
+          description: "WAHA browser engine is starting up. Click 'Get QR Code' again in a few moments.",
         });
       }
     } catch (error: any) {
@@ -301,6 +330,37 @@ export default function Settings() {
       setQrLoading(false);
     }
   }, [toast, getFunctionAuthHeaders, fetchSessions]);
+
+  // Auto-detect when WhatsApp is linked via QR code
+  useEffect(() => {
+    if (!qrImage && !qrCode) return;
+    if (!selectedSessionId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const authHeaders = await getFunctionAuthHeaders();
+        const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions`;
+        const res = await fetch(`${baseUrl}?action=get-qr&sessionId=${selectedSessionId}`, {
+          headers: authHeaders,
+        });
+        if (res.ok) {
+          const result = await res.json();
+          const returnedStatus = result.data?.status || result.status;
+          if (returnedStatus === "connected") {
+            setQrImage(null);
+            setQrCode(null);
+            toast({
+              title: "WhatsApp Connected!",
+              description: "Your WhatsApp account has been linked successfully.",
+            });
+            fetchSessions();
+          }
+        }
+      } catch {}
+    }, 3500);
+
+    return () => clearInterval(interval);
+  }, [qrImage, qrCode, selectedSessionId, getFunctionAuthHeaders, fetchSessions, toast]);
 
   const createSession = useCallback(async () => {
     if (!newSessionName.trim()) {
@@ -594,6 +654,10 @@ export default function Settings() {
       case "connecting":
       case "initializing":
         return "bg-yellow-100 text-yellow-800";
+      case "need_qr":
+      case "needs-qr":
+      case "scan_qr_code":
+        return "bg-blue-100 text-blue-800";
       default:
         return "bg-gray-100 text-gray-800";
     }

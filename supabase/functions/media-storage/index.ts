@@ -10,6 +10,7 @@ const corsHeaders = {
 };
 
 const ENDPOINT = (Deno.env.get("MINIO_ENDPOINT") || "").replace(/\/+$/, "");
+const PUBLIC_URL = (Deno.env.get("MINIO_PUBLIC_URL") || ENDPOINT).replace(/\/+$/, "");
 const REGION = Deno.env.get("MINIO_REGION") || "us-east-1";
 
 const aws = new AwsClient({
@@ -138,7 +139,7 @@ serve(async (req) => {
         return json({ error: `Upload failed (${put.status})`, details: text.slice(0, 300) }, put.status);
       }
 
-      const publicUrl = `${ENDPOINT}/${bucket}/${key}`;
+      const publicUrl = `${PUBLIC_URL}/${bucket}/${key}`;
       console.log(`Uploaded ${publicUrl} (${body.length} bytes)`);
       return json({ url: publicUrl, key, bucket });
     }
@@ -146,12 +147,13 @@ serve(async (req) => {
     if (action === "delete") {
       const { url: fileUrl } = await req.json();
       const owning = typeof fileUrl === "string"
-        ? ownedBuckets.find((b) => fileUrl.startsWith(`${ENDPOINT}/${b}/`))
+        ? ownedBuckets.find((b) => fileUrl.startsWith(`${PUBLIC_URL}/${b}/`) || fileUrl.startsWith(`${ENDPOINT}/${b}/`))
         : undefined;
       if (!owning) {
         return json({ error: "Invalid or forbidden file URL" }, 400);
       }
-      const key = fileUrl.slice(`${ENDPOINT}/${owning}/`.length);
+      const prefix = fileUrl.startsWith(`${PUBLIC_URL}/`) ? `${PUBLIC_URL}/${owning}/` : `${ENDPOINT}/${owning}/`;
+      const key = fileUrl.slice(prefix.length);
       const del = await aws.fetch(`${ENDPOINT}/${owning}/${key}`, { method: "DELETE" });
       if (!del.ok && del.status !== 404) {
         return json({ error: `Delete failed (${del.status})` }, del.status);

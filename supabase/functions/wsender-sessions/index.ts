@@ -274,7 +274,7 @@ serve(async (req) => {
         let qrImage: string | null = null;
         let qrCode: string | null = null;
         let status = "STARTING";
-        for (let i = 0; i < 12; i++) {
+        for (let i = 0; i < 3; i++) {
           const sres = await wahaFetch(`/api/sessions/${sessionName}`);
           if (sres.status === 404) {
             return new Response(JSON.stringify({ error: "Session not found. Delete it and create a new session." }), { status: 404, headers: jsonHeaders });
@@ -287,7 +287,7 @@ serve(async (req) => {
           if (["STOPPED", "FAILED"].includes(status)) {
             const startRes = await wahaFetch(`/api/sessions/${sessionName}/start`, {
               method: "POST",
-              timeoutMs: 40_000,
+              timeoutMs: 10_000,
             }).catch(() => null);
             if (!startRes?.ok) {
               console.warn("WAHA session start failed while requesting QR", sessionName, startRes?.status || 0);
@@ -305,7 +305,7 @@ serve(async (req) => {
               console.warn("WAHA QR endpoint returned", qrRes.status, sessionName);
             }
           }
-          await new Promise(r => setTimeout(r, 1000));
+          if (i < 2) await new Promise(r => setTimeout(r, 800));
         }
         return new Response(JSON.stringify({
           data: { qrImage, qrCode, status: mapWahaStatus(status) },

@@ -18,5 +18,15 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_REGION: ${MINIO_REGION}
+      WAHA_DEFAULT_SESSION: ${WAHA_DEFAULT_SESSION:-u_a2209e8038224b7dbe2f}
       FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON:-}
-      WEBHOOK_URL_OVERRIDE: "https://regards-translate-adventures-pine.trycloudflare.com/functions/v1/webhook-wsender"
+      WEBHOOK_URL_OVERRIDE: ${WEBHOOK_URL_OVERRIDE:-}
+
+  waha:
+    image: devlikeapro/waha
+    environment:
+      WHATSAPP_DEFAULT_ENGINE: WEBJS
+      WHATSAPP_API_KEY: ${WAHA_API_KEY}
+    ports:
+      - "3001:3000"
+    restart: always

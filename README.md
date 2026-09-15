@@ -1,28 +1,40 @@
-# BuildStart.io — self-hosted WhatsApp AI bot
+# BuildStart.io — Mentor Engineers Workshop Customization Edition
 
-Everything in this bundle runs on **your** infrastructure. The only thing left on
+Everything in this bundle runs on **your** infrastructure. Customized specifically for **Mentor Engineers Automotive Service & Mechanical Workshop**, providing a WhatsApp AI booking assistant, workshop jobs pipeline, and customized dashboard.
+
+The only thing left on
 Lovable is a single stateless function, `ai-generate`, which forwards prompts to
 the Lovable AI Gateway and returns text. It touches no database and stores nothing.
 
 ```
-┌──────────── your server ─────────────────────────────┐
-│  frontend (Vite dashboard)                           │
-│        │ supabase-js                                 │
-│  self-hosted Supabase                                │
-│    postgres + auth + kong + edge-runtime             │
-│      ├ webhook-wsender ─► message_queue              │
-│      ├ process-message  (queue drainer, cron)        │
-│      ├ ai-chat  ── builds prompt, quotas, orders ────┼──► Lovable ai-generate ──► AI Gateway
-│      ├ send-whatsapp ──► WAHA / Wsender              │
-│      ├ media-storage ──► MinIO                       │
-│      └ send-push ──────► Firebase                    │
-└──────────────────────────────────────────────────────┘
+┌──────────── your server ────────────────────────────────────────────────────────┐
+│  frontend (Vite workshop dashboard)                                            │
+│        │ supabase-js                                                           │
+│  self-hosted Supabase                                                          │
+│    postgres + auth + kong + edge-runtime                                       │
+│      ├ webhook-wsender ─► message_queue                                        │
+│      ├ process-message  (queue drainer, cron)                                  │
+│      ├ ai-chat  ── workshop prompt, standalone oil, add-ons upsell, bookings ──┼──► Lovable ai-generate ──► AI Gateway
+│      ├ send-whatsapp ──► WAHA / WhatsApp Web                                   │
+│      ├ media-storage ──► MinIO                                                 │
+│      └ send-push ──────► Firebase                                              │
+└────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 `ai-chat` stays local on purpose: catalog, FAQs, plan quotas, order extraction and
 `ai_usage_logs` never leave your database. The prompt, model
 (`google/gemini-3-flash-preview`) and `max_tokens` (500) are byte-identical to the
 Lovable-hosted version, so reply quality is unchanged.
+
+### Key Workshop Customizations
+
+1. **5 Workshop Branches**: General/Full Service, Standalone Oil Change, Vehicle Wash, Mechanical Repair & Diagnostic Intake, Detailing & Polish.
+2. **Standalone Oil Change**: Independent flow with Labour LKR 1,200 + oil price.
+3. **Full Service Engine Oil Lock**: Confirms if engine oil change is needed before displaying oil grades.
+4. **Mandatory Workshop Add-On Upsell**: Proactively presents popular add-ons (Caliper Pin Greasing, Cabin AC Filter, Wiper Blades, Underbody Wax, Coolant Flush, etc.) before booking.
+5. **Physical Workshop Mode**: Eliminates delivery/shipping address queries.
+6. **Order Custom Fields Schema**: Automatically extracts vehicle registration number, model, appointment date/time slot, and service category into `orders.custom_fields`.
+7. **Bookings & Workshop Jobs Dashboard**: Table and Calendar view with vehicle details and status updates (`confirmed`, `received`, `in_progress`, `finished`).
 
 ## Layout
 

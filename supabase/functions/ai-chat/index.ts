@@ -120,7 +120,8 @@ serve(async (req) => {
     const freeDeliveryThreshold = deliverySettings.free_delivery_threshold || 0;
 
     const productCatalog = products.map(p => {
-      let line = `- ${p.name}: Base price LKR ${p.price} (${p.product_type})`;
+      let line = `- ${p.name}: Base price LKR ${p.price}`;
+      if (p.product_type === "digital") line += " (digital)";
       if (p.product_type === "physical" && p.delivery_price && p.delivery_price > 0) {
         line += ` | Delivery fee: LKR ${p.delivery_price}`;
       }
@@ -175,7 +176,7 @@ serve(async (req) => {
     // Get list of tracked FAQ IDs
     const trackedFaqIds = faqs.filter(f => f.is_tracked).map(f => f.id);
 
-    const conversationContext = (conversationHistory as ConversationMessage[])
+    const conversationContext = (((conversationHistory || []) as ConversationMessage[]) || [])
       .map(msg => `${msg.direction === "inbound" ? "Customer" : "Assistant"}: ${msg.message}`)
       .join("\n");
 
@@ -250,15 +251,251 @@ ${faqContext || "No FAQs configured"}
 WELCOME MESSAGE (for first-time customers):
 ${welcomeMessage}
 
-When the customer completes an order, summarize the order details beautifully with emojis and confirm.
+===================================================================
+CRITICAL WORKSHOP OPERATION OVERRIDE (HIGHEST PRIORITY):
+===================================================================
+You are the dedicated WhatsApp assistant for Mentor Engineers, an automotive service and mechanical workshop.
+CUSTOMERS DRIVE THEIR VEHICLES DIRECTLY TO OUR WORKSHOP BAY IN PERSON.
+WE DO NOT DELIVER OR SHIP ANYTHING. THERE IS NO COURIER SERVICE.
 
-CRITICAL ORDER INSTRUCTION:
-When you have collected ALL required order details and the customer confirms, you MUST include a JSON block in your response wrapped in <ORDER_JSON> tags like this:
-- For PHYSICAL products: <ORDER_JSON>{"customer_name":"...","customer_phone":"...","district":"...","customer_address":"...","order_items":[{"name":"...","price":...,"quantity":...,"product_type":"physical"}],"payment_method":"cod or bank_transfer","total_amount":...}</ORDER_JSON>
-- For DIGITAL products: <ORDER_JSON>{"customer_name":"...","customer_phone":"...","customer_email":"...","customer_address":null,"order_items":[{"name":"...","price":...,"quantity":...,"product_type":"digital"}],"payment_method":"bank_transfer","total_amount":...}</ORDER_JSON>
-Include this JSON block at the END of your confirmation message. The customer won't see the JSON tags.
+ABSOLUTE FORBIDDEN RULES:
+1. NEVER ASK FOR OR WRITE:
+   ❌ "Shipping Address"
+   ❌ "Delivery Address"
+   ❌ "District" or "City"
+   ❌ "Bank: Not configured"
+   Do NOT ask for any address under ANY circumstances! Customers bring their car to the workshop.
+2. NEVER SHOW RAW JSON OR TAGS IN CONVERSATION:
+   The <ORDER_JSON>, <IMAGE_URL>, <VIDEO_URL>, and <USED_FAQS> tags are strictly invisible system tags.
+   They must NEVER appear in the conversational text, and must ONLY appear at the very END of your message after explicit customer confirmation.
 
-CRITICAL SECURITY RULE:
+===================================================================
+OPERATIONAL CHATBOT WORKFLOW (MENTOR ENGINEERS WORKSHOP):
+===================================================================
+Guide the customer politely in natural Singlish or English, asking ONE clear follow-up question at a time.
+All pricing, vehicle categories, oil brands, and add-on rates MUST be retrieved dynamically from the PRODUCT CATALOG and FREQUENTLY ASKED QUESTIONS above.
+
+--- 1. MAIN MENU & INTENT ROUTING ---
+When a customer sends a greeting ("Hi", "Hello", "Ayubowan", etc.) or asks generally what services are available, present the 5 core categories:
+"Ayubowan! Welcome to Mentor Engineers! 🚗
+Mokakda ada oyata karaganna oni service eka?
+
+1 — Service (Body Wash, Under Wash, Oil Change, Full Service)
+2 — Mechanical (Inspection, Quotation, Repairs, Diagnostics)
+3 — Detailing (Interior Deep Clean, Cut & Polish, Full Detailing)
+4 — My Booking Status
+5 — Talk to Service Advisor"
+
+--- 2. CATEGORY 1: SERVICE SUB-FLOW ---
+When the customer chooses "1" or asks for "Service", present the 4 Service sub-options:
+"Api gawa laba gatha haki service options:
+🔹 1 — Body Wash & Vacuum
+🔹 2 — Under Wash
+🔹 3 — Oil Change (Standalone)
+🔹 4 — Full Service
+Karuwakara mokakda oyata awashya service eka?"
+
+• SUB-OPTION 1: BODY WASH & VACUUM
+  - Ask vehicle model to get category price (Small Car: Rs. 1,000, Sedan: Rs. 1,200, SUV: Rs. 1,400, Van: Rs. 1,600).
+  - State the price, then PROACTIVELY ask the MANDATORY ADD-ON UPSELL QUESTION before scheduling!
+
+• SUB-OPTION 2: UNDER WASH
+  - Ask vehicle model (Car/Sedan: Rs. 2,800, Van/Light Truck: Rs. 3,200).
+  - State the price, then PROACTIVELY ask the MANDATORY ADD-ON UPSELL QUESTION before scheduling!
+
+• SUB-OPTION 3: STANDALONE OIL CHANGE (INDEPENDENT SERVICE)
+  - Clarify the oil service type:
+    "Api gawa me standalone oil change options thiyenawa:
+    🔹 1 — Engine Oil Change (Engine oil & filter replacement)
+    🔹 2 — Transmission / Gearbox Oil Change (CVT, ATF, or Manual gear oil)
+    🔹 3 — Clutch Oil / Brake Fluid Change & Bleeding
+    Mokakda oyage wahaneta karaganna oni option eka?"
+  - If Engine Oil is selected:
+    1. Ask Vehicle Model (e.g. Premio, Aqua, Axio, Vezel, Wagon R, Alto, Prado).
+    2. Check oil capacity: Small Car / Aqua (3L) vs Sedan / Premio / SUV (4L).
+    3. Recommend Viscosity Grade (0W-20 for hybrids, 5W-30 / 10W-30 for sedans, 10W-40 / 15W-40 for older cars).
+    4. List available brands and dynamic prices from catalog (Mobil, Motul, Toyota Genuine, Totachi, Caltex, Castrol, Shell, Liqui Moly).
+    5. Price calculation: Standalone Labour LKR 1,200 + Selected Oil price.
+    6. Once oil is chosen, show Subtotal and PROACTIVELY ask the MANDATORY ADD-ON UPSELL QUESTION before scheduling!
+
+• SUB-OPTION 4: FULL SERVICE PACKAGE
+  - Ask vehicle model to get category price (Small Car: Rs. 6,900, Sedan: Rs. 7,100, SUV: Rs. 7,500).
+  - State the 9 included items:
+    ✅ 1. Engine Oil Replacement (Labour)
+    ✅ 2. Oil Filter Replacement
+    ✅ 3. Body Wash & Shampoo
+    ✅ 4. Vacuum Cleaning (Interior & Trunk)
+    ✅ 5. Engine Bay Cleaning & Degreasing
+    ✅ 6. High-Pressure Under Wash
+    ✅ 7. Hand Wax Polish
+    ✅ 8. Diagnostic Computer Scan & Health Report
+    ✅ 9. Comprehensive 40-point Safety Inspection
+  - MANDATORY ENGINE OIL QUESTION:
+    You MUST explicitly ask:
+    "Full Service eka ekka Engine Oil change ekakuth karaganna onida? 🛢️
+    1 — Ow, Engine Oil change ekakuth karaganna oni (Oil brands thoranna)
+    2 — Naha, Full Service labour package eka pamanak athi"
+    CRITICAL: DO NOT list oil brands or prices yet until the customer responds!
+  - If YES: Recommend viscosity grade, list oil brands and exact prices from catalog for capacity (3L or 4L), and wait for their choice.
+    Once oil is chosen: show Subtotal = Full Service Package + Oil Price, and PROACTIVELY ask the MANDATORY ADD-ON UPSELL QUESTION!
+  - If NO: Base package labour only, and PROACTIVELY ask the MANDATORY ADD-ON UPSELL QUESTION!
+
+--- 3. MANDATORY UNIVERSAL ADD-ON UPSELL (FOR ALL SERVICES) ---
+CRITICAL: Whenever ANY service (Wash, Standalone Oil Change, Full Service, Detailing) is configured:
+DO NOT ask for customer details, appointment date, or time slot yet!
+YOUR IMMEDIATE RESPONSE MUST BE TO PROACTIVELY ASK:
+"💰 Estimated Total:
+📦 Service: LKR [Service/Labour Price]
+🛢️ Oil (if selected): LKR [Oil Price]
+🎯 Subtotal: LKR [Subtotal]
+
+Me service eka ekka apage popular add-on services thawa add karaganna onida? 🛠️
+• Underbody Wax Protection (Rs. 1,500)
+• Cabin AC Filter Replacement (Rs. 3,500)
+• Air Filter Replacement (Rs. 2,500)
+• Wiper Blade Replacement - Pair (Rs. 2,200)
+• Caliper Pin Greasing (Rs. 1,200)
+• Brake Fluid Replacement & Bleeding (Rs. 2,200)
+• Coolant Replacement & Radiator Flush (Rs. 3,000)
+• Wiper Washer Fluid Refill (Rs. 750)
+• Air Freshener Can / Clip (Rs. 650)
+Mehema add-on ekak add karamuda, nathnam appointment slot ekakata proceed karannada?"
+
+--- 4. APPOINTMENT SCHEDULING (ONLY AFTER ADD-ONS ARE ANSWERED) ---
+When the customer chooses add-on(s) or declines ("no" / "normal service" / "proceed" / "naha"):
+• Ask for:
+  📅 Preferred Appointment Date & Time Slot:
+  (Workshop Hours: Mon-Sat 08:30 AM to 05:30 PM. Standard Slots: 08:30 AM, 09:30 AM, 10:30 AM, 01:00 PM, 02:30 PM. CLOSED on Sundays)
+  🚗 Vehicle Registration Number (e.g. EP KAG-8835)
+  👤 Customer Full Name & Phone Number
+
+--- 5. SUMMARY CARD & EXPLICIT CONFIRMATION ---
+When vehicle number, slot, and customer name are provided, present the complete booking card:
+"📋 Booking Summary:
+📦 Service: [Package & Oil details]
+🛠️ Add-ons: [Selected add-ons or None]
+🚗 Vehicle: [Vehicle Number & Model]
+📅 Slot: [Date & Time]
+👤 Name: [Customer Name]
+📞 Phone: [Customer Phone]
+💰 Total Amount: LKR [Final Total]
+
+Me details okkoma hari da? Booking eka confirm karannada? 🎯"
+
+CRITICAL: DO NOT output <ORDER_JSON> before the customer explicitly confirms!
+
+--- 6. ORDER CREATION (<ORDER_JSON>) ONLY AFTER CONFIRMATION ---
+ONLY WHEN the customer responds with "Yes", "Confirm", "Hari", "Ok", or "Book it", reply with confirmation text and append the <ORDER_JSON> block at the very end:
+
+<ORDER_JSON>{
+  "customer_name": "Customer Name",
+  "customer_phone": "07XXXXXXXX",
+  "service_category": "service",
+  "service_package": "Full Service + Mobil 10W-30 Oil",
+  "vehicle_number": "EP KAG-8835",
+  "vehicle_model": "Toyota Premio",
+  "vehicle_category": "Sedan",
+  "engine_oil": "Mobil Super 10W-30 (4L)",
+  "add_ons": ["Caliper Pin Greasing"],
+  "booking_date": "YYYY-MM-DD",
+  "booking_time": "09:30 AM",
+  "problem_description": null,
+  "order_items": [
+    {"name": "Full Service - Sedan", "price": 7100, "quantity": 1, "product_type": "physical"},
+    {"name": "Mobil Super 10W-30 (4L)", "price": 14310, "quantity": 1, "product_type": "physical"}
+  ],
+  "payment_method": "cod",
+  "total_amount": 21410
+}</ORDER_JSON>
+
+CRITICAL SCHEMA ENFORCEMENT:
+1. "total_amount": MUST be a pure number ONLY (e.g. 21410). NEVER write "Rs. 21,410" or string!
+2. "payment_method": MUST be strictly lowercase "cod" or "bank_transfer". NEVER write "Cash on Delivery" or "Bank Transfer"!
+3. Keys MUST be exact: "customer_name", "customer_phone", "service_category", "service_package", "vehicle_number", "vehicle_model", "vehicle_category", "engine_oil", "add_ons", "booking_date", "booking_time", "order_items", "payment_method", "total_amount".
+
+--- 7. CATEGORY 2: MECHANICAL SUB-FLOW ---
+When the customer chooses "2" or asks about mechanical repairs, warning lights, or strange noises:
+Present the 5 Mechanical branches:
+"🔧 Mentor Engineers Mechanical Services:
+1 — Vehicle Inspection / Diagnostic Scan (Rs. 2,500)
+2 — Request Quotation
+3 — Repair Booking (Existing Quotation QT-XXXX or New Repair)
+4 — Describe a Problem / Mechanical Issue
+5 — Talk to Service Advisor"
+
+• BRANCH 1: VEHICLE INSPECTION (Rs. 2,500)
+  Ask which system needs inspection (13 inspection areas: Complete Vehicle, Engine, Transmission, Suspension, Steering, Brakes, AC, Electrical, Battery, Warning Light, Unusual Noise/Vibration, Fluid Leak, Overheating).
+  Ask vehicle model and schedule an inspection slot.
+
+• BRANCH 2: REQUEST QUOTATION
+  1. Ask Vehicle Model, Year, and details of repairs or parts needed.
+  2. Ask customer for their Parts Preference:
+     - 1 — Genuine Parts (Toyota/Nissan/Honda original OEM)
+     - 2 — OEM Aftermarket Parts (High quality reputable Japanese/European brand)
+     - 3 — Re-conditioned Japanese Parts (Inspected, cost-effective imported parts)
+     - 4 — Workshop Recommendation (Senior Advisor selects best durability & price)
+  3. Inform customer that our Senior Advisor will prepare quotation (code format QT-XXXX) and send details via WhatsApp.
+
+• BRANCH 3: REPAIR BOOKING
+  Ask if they have an existing quotation code (e.g. QT-1042) or want to book a known repair directly.
+  If quotation code provided, confirm booking date and time slot.
+
+• BRANCH 4: DESCRIBE A PROBLEM / DIAGNOSTIC INTAKE
+  CRITICAL: DO NOT make mechanical diagnoses or guesses over chat.
+  Politely respond:
+  "Obe wahane thiyena issue eka apita thawa pahadili karanna puluwanda?
+  Puluwannam audio voice note ekak, photo ekak hari short video ekak hari ewanna.
+  Ape Senior Service Advisor meka manual review karala oyata wisthara kiyai! 🛠️"
+  Then offer: [Book Inspection Rs. 2,500] [Request Quotation] [Talk to Advisor].
+
+• BRANCH 5: TALK TO ADVISOR
+  Request customer name, vehicle number, and preferred contact time. Handover to workshop human team.
+
+--- 8. CATEGORY 3: DETAILING SUB-FLOW ---
+When the customer chooses "3" or asks about Detailing / Cut & Polish:
+Present the 3 Detailing packages with scope, duration, and catalog pricing:
+🔹 1 — Interior Detailing (Deep cleaning seats, carpet, roof lining, dashboard, door trims, boot, odour removal - from Rs. 12,000 for Small Cars, Rs. 14,000 for Sedans).
+🔹 2 — Exterior Detailing / Cut & Polish (Multi-stage machine cutting compound, swirl mark & scratch removal, high-gloss polish, synthetic wax - Duration: approx 1.5 working days - Sedan Rs. 18,000, SUV Rs. 22,000).
+🔹 3 — Full Detailing Package (Comprehensive restoration: Complete Interior Detailing + Exterior Cut & Polish + Machine Paint Sealant + Engine Bay + Wheels/Tyres - from Rs. 28,000).
+Ask vehicle model to quote exact vehicle category price, then offer booking date/time slot.
+
+--- 9. CATEGORY 4: MY BOOKING STATUS ---
+When customer chooses "4" or asks about existing booking status:
+Ask for Phone Number, Vehicle Registration Number (e.g. CAG-5753), or Booking ID (BK-XXXXX).
+Explain status: Pending (Reviewing slot), Confirmed (Bay reserved), Received (Vehicle arrived), In Progress (Technicians working), Finished (Ready for collection).
+
+--- 10. CATEGORY 5: TALK TO SERVICE ADVISOR ---
+When customer chooses "5" or requests human assistance:
+"Senior Service Advisor kenek samaga sambanda wimata obe nama, durakathana ankaya, saha wahana ankaya ewanna. Ape team eken thawa sulu welawakin oya samaga direct call ho WhatsApp magin sambanda wenu atha! 📞"
+
+--- 11. CRITICAL STEP LOCK: MANDATORY ADD-ON UPSELL BEFORE ASKING FOR DETAILS ---
+Whenever the customer selects an Engine Oil (e.g. "Mobil 10W-30", "Totachi 0W-20", "Castrol") or a service package:
+YOU ARE STRICTLY FORBIDDEN FROM ASKING FOR:
+❌ Customer Name
+❌ Phone Number
+❌ Appointment Date or Time Slot
+DO NOT ASK FOR THEM YET!
+Your response MUST calculate the Subtotal and immediately ask the Add-on question:
+"💰 Total: LKR [Subtotal]
+
+Me service eka ekka apage popular add-on services thawa add karaganna onida? 🛠️
+• Underbody Wax Protection (Rs. 1,500)
+• Cabin AC Filter Replacement (Rs. 3,500)
+• Air Filter Replacement (Rs. 2,500)
+• Wiper Blade Replacement - Pair (Rs. 2,200)
+• Caliper Pin Greasing (Rs. 1,200)
+• Brake Fluid Replacement & Bleeding (Rs. 2,200)
+• Coolant Replacement & Radiator Flush (Rs. 3,000)
+• Wiper Washer Fluid Refill (Rs. 750)
+• Air Freshener Can / Clip (Rs. 650)
+Mehema add-on ekak add karamuda, nathnam appointment slot ekakata proceed karannada?"
+
+ONLY in the NEXT message, after the customer responds about add-ons ("add X" or "no/proceed"), you may ask for:
+📅 Preferred Appointment Date & Time Slot
+🚗 Vehicle Registration Number
+👤 Customer Name
+
+--- 12. CRITICAL SECURITY & VISIBILITY RULES ---
 - NEVER show raw JSON, code, data structures, or technical markup to the customer under ANY circumstances.
 - The ORDER_JSON, IMAGE_URL, VIDEO_URL, and USED_FAQS tags are INVISIBLE system instructions. They must ONLY appear ONCE at the very END of your message, after all human-readable text.
 - NEVER write ORDER_JSON, IMAGE_URL, VIDEO_URL, or USED_FAQS in the middle of your reply.
@@ -289,10 +526,67 @@ CRITICAL SECURITY RULE:
       messages.push({ role: "user", content: trimmedMessage });
     }
 
+    // High-priority operational reminder to guarantee sequence compliance with Gemini Flash
+    messages.push({
+      role: "system",
+      content: `CRITICAL OPERATIONAL REMINDER FOR MENTOR ENGINEERS:
+1. SEQUENCE LOCK FOR ADD-ONS:
+Whenever the customer selects a service package or an engine oil:
+- State the price / subtotal.
+- You MUST immediately ask the mandatory Add-On Services question in Singlish:
+"Me service eka ekka apage popular add-on services thawa add karaganna onida? 🛠️
+• Underbody Wax Protection (Rs. 1,500)
+• Cabin AC Filter Replacement (Rs. 3,500)
+• Air Filter Replacement (Rs. 2,500)
+• Wiper Blade Replacement - Pair (Rs. 2,200)
+• Caliper Pin Greasing (Rs. 1,200)
+• Brake Fluid Replacement & Bleeding (Rs. 2,200)
+• Coolant Replacement & Radiator Flush (Rs. 3,000)
+• Wiper Washer Fluid Refill (Rs. 750)
+• Air Freshener Can / Clip (Rs. 650)
+Mehema add-on ekak add karamuda, nathnam appointment slot ekakata proceed karannada?"
+- STRICT PROHIBITION: DO NOT ask for Appointment Date, Time Slot, Vehicle Registration Number, or Customer Name yet! You must wait for their answer about add-ons first.
+- ONLY in the subsequent turn after they answer about add-ons (whether they choose an add-on or say no), ask for:
+  📅 Preferred Appointment Date & Time Slot
+  🚗 Vehicle Registration Number
+  👤 Customer Name
+
+2. FULL SERVICE ENGINE OIL CHECK:
+When Full Service is selected, you MUST first ask:
+"Full Service eka ekka Engine Oil change ekakuth karaganna onida? 🛢️ (1 — Ow, 2 — Naha)"
+Do NOT list engine oil brands until the customer answers "Ow" or "Yes".
+
+3. PHYSICAL WORKSHOP ONLY:
+Never ask for shipping address, delivery address, city, or district.
+
+4. ORDER CREATION & PAYMENT:
+- DO NOT output <ORDER_JSON> when presenting the booking summary or asking for confirmation!
+- Output <ORDER_JSON> ONLY AFTER the customer explicitly replies confirming the booking (e.g. "Ow", "Confirm", "Yes", "Ela").
+In <ORDER_JSON>, include:
+{
+  "customer_name": "...",
+  "customer_phone": "${phoneNumber}",
+  "vehicle_number": "...",
+  "vehicle_model": "...",
+  "booking_date": "...",
+  "booking_time": "...",
+  "service_category": "mechanical" (or "oil_change" / "detailing" / "wash"),
+  "service_package": "...",
+  "order_items": [
+    {"name": "Full Service (Sedan)", "price": 7100, "quantity": 1},
+    {"name": "Mobil 5W-30 (4L)", "price": 16182, "quantity": 1}
+  ],
+  "total_amount": 23282,
+  "payment_method": "cod"
+}
+Ensure total_amount is a pure number and payment_method is "cod".
+CRITICAL: NEVER write "Bank: Not configured" or "Digital Wallet: Not configured"! State that payment can be made at the workshop counter via Cash or Card upon vehicle drop-off/pickup.`
+    });
+
     // ------------------------------------------------------------------
     // AI call.
     // If AI_GENERATE_URL + BOT_API_KEY are set (self-hosted deployment), the
-    // model call is delegated to the Lovable-hosted `ai-generate` transport.
+    // model call is delegated to the Lovable-hosted \`ai-generate\` transport.
     // Otherwise we talk to the Lovable AI Gateway directly (Lovable-hosted).
     // Prompt, model and max_tokens are identical on both paths, so response
     // quality is unchanged.
@@ -300,7 +594,7 @@ CRITICAL SECURITY RULE:
     const aiGenerateUrl = Deno.env.get("AI_GENERATE_URL");
     const botApiKey = Deno.env.get("BOT_API_KEY");
     const MODEL = "google/gemini-3-flash-preview";
-    const MAX_TOKENS = 500;
+    const MAX_TOKENS = 800;
 
     let aiResponse: Response;
     if (aiGenerateUrl && botApiKey) {
@@ -387,33 +681,150 @@ CRITICAL SECURITY RULE:
           const orderData = JSON.parse(orderJsonMatch[1]);
           console.log("Saving order to database:", JSON.stringify(orderData));
 
-          // Deduplication: check if a similar order was created in the last 5 minutes
-          const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+          const parsePrice = (val: any): number => {
+            if (val === null || val === undefined) return 0;
+            if (typeof val === "number") return isNaN(val) ? 0 : val;
+            const str = String(val).replace(/,/g, "").replace(/[^0-9.]/g, "");
+            const num = parseFloat(str);
+            return isNaN(num) ? 0 : num;
+          };
+
+          const totalAmount = parsePrice(orderData.total_amount ?? orderData.total_price ?? orderData.price ?? 0);
+
+          const cleanPhone = (val: any): string => {
+            if (!val) return phoneNumber;
+            const str = String(val).trim();
+            if (str.toLowerCase().includes("not") || str.length < 5) return phoneNumber;
+            return str;
+          };
+          const customerPhone = cleanPhone(orderData.customer_phone);
+
+          // Deduplication: check if a similar order was created in the last 3 minutes
+          const threeMinAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
           const { data: recentOrders } = await supabase
             .from("orders")
             .select("id")
             .eq("user_id", userId)
-            .eq("customer_phone", orderData.customer_phone || phoneNumber)
-            .eq("total_amount", orderData.total_amount || 0)
-            .gte("created_at", fiveMinAgo);
+            .eq("whatsapp_phone", phoneNumber)
+            .gte("created_at", threeMinAgo);
 
           if (recentOrders && recentOrders.length > 0) {
             console.log("Duplicate order detected, skipping creation. Existing:", recentOrders[0].id);
           } else {
+            const customFields: Record<string, any> = orderData.custom_fields || {};
+            let vNum = orderData.vehicle_number || orderData.vehicle_registration || orderData.vehicle_reg_number || orderData.vehicle_no || orderData.reg_number;
+            let vModel = orderData.vehicle_model || orderData.model || orderData.vehicle || orderData.car_model;
+            let bDate = orderData.booking_date || orderData.date;
+            let bTime = orderData.booking_time || orderData.time;
+
+            // Fallback vehicle number and date extraction from conversation if missing in orderData
+            if (!vNum || !bDate) {
+              const fullConvText = [...(conversationHistory || []).map((m: any) => m.message), trimmedMessage].join(" ");
+              if (!vNum) {
+                const vMatch = fullConvText.match(/(?:Vehicle|Reg(?:\s*No|\.?)?|Plate)[:\s]+([A-Z0-9\s-]+?)(?:,|\n|$|\s+Name|\s+Date)/i)
+                  || fullConvText.match(/\b([A-Z]{1,3}\s*[-–]\s*\d{4})\b/i)
+                  || fullConvText.match(/\b([A-Z]{2,3}\s+[A-Z]{2,3}\s*[-–]\s*\d{4})\b/i);
+                if (vMatch) vNum = vMatch[1]?.trim();
+              }
+              if (!bDate) {
+                const dMatch = fullConvText.match(/(?:Date|Slot|Appointment)[:\s]+([A-Za-z0-9\s:/-]+?)(?:,|\n|$|\s+Vehicle|\s+Name)/i);
+                if (dMatch) bDate = dMatch[1]?.trim();
+              }
+            }
+
+            if (vNum) customFields.vehicle_number = vNum;
+            if (vModel) customFields.vehicle_model = vModel;
+            if (bDate) customFields.booking_date = bDate;
+            if (bTime) customFields.booking_time = bTime;
+
+            const vCat = orderData.vehicle_category || orderData.product_variation || orderData.vehicle_type;
+            if (vCat) customFields.vehicle_category = vCat;
+            const sPkg = orderData.service_package || orderData.service || orderData.package || orderData.product_name || orderData.service_name;
+            if (sPkg) customFields.service_package = sPkg;
+
+            let serviceCategory = (orderData.service_category || "").toLowerCase().trim();
+            if (!serviceCategory) {
+              const checkText = `${sPkg || ""} ${JSON.stringify(orderData.order_items || orderData.products || [])} ${orderData.problem_description || ""}`.toLowerCase();
+              if (checkText.includes("inspect") || checkText.includes("diagnos") || checkText.includes("mechanic") || checkText.includes("repair") || checkText.includes("brake") || checkText.includes("suspension") || checkText.includes("clutch") || checkText.includes("engine tune") || checkText.includes("running repair")) {
+                serviceCategory = "mechanical";
+              } else if (checkText.includes("detail") || checkText.includes("polish") || checkText.includes("cut & polish") || checkText.includes("interior detail") || checkText.includes("ceramic")) {
+                serviceCategory = "detailing";
+              } else if (checkText.includes("wash") || checkText.includes("vacuum") || checkText.includes("body wash")) {
+                serviceCategory = "wash";
+              } else if (checkText.includes("oil") || checkText.includes("service") || checkText.includes("filter") || checkText.includes("mobil") || checkText.includes("motul") || checkText.includes("caltex") || checkText.includes("totachi") || checkText.includes("toyota")) {
+                serviceCategory = "oil_change";
+              }
+            }
+            if (serviceCategory) customFields.service_category = serviceCategory;
+
+            if (orderData.engine_oil) customFields.engine_oil = orderData.engine_oil;
+            if (orderData.add_ons) customFields.add_ons = orderData.add_ons;
+            if (orderData.problem_description) customFields.problem_description = orderData.problem_description;
+
+            // Normalize payment_method to satisfy Postgres check constraint ('cod' | 'bank_transfer')
+            let paymentMethod = "cod";
+            const rawPm = String(orderData.payment_method || "").toLowerCase().trim();
+            if (rawPm.includes("bank") || rawPm.includes("transfer")) {
+              paymentMethod = "bank_transfer";
+            } else {
+              paymentMethod = "cod";
+            }
+
+            // Synthesize order_items from order_items, products, or items
+            const rawList = Array.isArray(orderData.order_items) && orderData.order_items.length > 0
+              ? orderData.order_items
+              : (Array.isArray(orderData.products) && orderData.products.length > 0
+                  ? orderData.products
+                  : (Array.isArray(orderData.items) ? orderData.items : []));
+
+            let orderItems = rawList.map((item: any) => {
+              const name = item.name || item.product_name || item.title || "Service Item";
+              const varName = item.variation || item.product_variation || item.selected_variation;
+              const fullName = varName ? `${name} (${varName})` : name;
+              return {
+                name: fullName,
+                price: parsePrice(item.price ?? item.total ?? 0),
+                quantity: item.quantity || 1,
+                product_type: "physical",
+              };
+            });
+
+            if (orderItems.length === 0) {
+              const itemName = [sPkg, vCat].filter(Boolean).join(" - ") || "Vehicle Service Booking";
+              orderItems = [{
+                name: itemName,
+                price: totalAmount,
+                quantity: 1,
+                product_type: "physical"
+              }];
+            }
+
+            let specialInst = orderData.special_instructions || "";
+            if (orderData.customer_email) specialInst = `Email: ${orderData.customer_email} ${specialInst}`.trim();
+            if (vNum || vModel || bDate) {
+              const vInfo = [
+                vNum ? `Vehicle: ${vNum}` : "",
+                vModel ? `(${vModel})` : "",
+                bDate ? `Slot: ${bDate} ${bTime || ""}` : "",
+              ].filter(Boolean).join(" ");
+              specialInst = `${vInfo} | ${specialInst}`.trim().replace(/^\|\s*/, "");
+            }
+
             const { data: orderResult, error: orderError } = await supabase
               .from("orders")
               .insert({
-                customer_name: orderData.customer_name,
-                customer_phone: orderData.customer_phone || phoneNumber,
+                customer_name: orderData.customer_name || "Customer",
+                customer_phone: customerPhone,
                 whatsapp_phone: phoneNumber,
                 district: orderData.district || null,
                 customer_address: orderData.customer_address || null,
-                order_items: orderData.order_items || [],
-                payment_method: orderData.payment_method || "cod",
-                total_amount: orderData.total_amount || 0,
-                special_instructions: orderData.customer_email ? `Email: ${orderData.customer_email}` : null,
+                order_items: orderItems,
+                payment_method: paymentMethod,
+                total_amount: totalAmount,
+                special_instructions: specialInst || null,
                 status: "pending",
                 user_id: userId,
+                custom_fields: customFields,
               })
               .select()
               .single();
@@ -438,7 +849,11 @@ CRITICAL SECURITY RULE:
                   const items = (orderData.order_items || [])
                     .map((item: any) => `${item.quantity}x ${item.name}`)
                     .join(", ");
-                  const notifMessage = `📦 New Order #${orderResult.id.substring(0, 8)}\n👤 ${orderData.customer_name}\n📱 ${orderData.customer_phone || phoneNumber}\n🛒 ${items}\n💰 Total: ${orderData.total_amount}\n💳 ${orderData.payment_method === "cod" ? "Cash on Delivery" : "Bank Transfer"}${orderData.district ? `\n🏘️ District: ${orderData.district}` : ""}${orderData.customer_address ? `\n📍 ${orderData.customer_address}` : ""}`;
+                  const vDetails = [orderData.vehicle_number, orderData.vehicle_model].filter(Boolean).join(" ");
+                  const slotDetails = [orderData.booking_date, orderData.booking_time].filter(Boolean).join(" ");
+                  const notifMessage = orderData.vehicle_number || orderData.service_package
+                    ? `🚗 New Booking #${orderResult.id.substring(0, 8)}\n👤 ${orderData.customer_name}\n📱 ${orderData.customer_phone || phoneNumber}${vDetails ? `\n🚘 Vehicle: ${vDetails}` : ""}${slotDetails ? `\n📅 Slot: ${slotDetails}` : ""}\n🛠️ Service: ${orderData.service_package || items}\n💰 Total: ${orderData.total_amount}`
+                    : `📦 New Order #${orderResult.id.substring(0, 8)}\n👤 ${orderData.customer_name}\n📱 ${orderData.customer_phone || phoneNumber}\n🛒 ${items}\n💰 Total: ${orderData.total_amount}\n💳 ${orderData.payment_method === "cod" ? "Cash on Delivery" : "Bank Transfer"}${orderData.district ? `\n🏘️ District: ${orderData.district}` : ""}${orderData.customer_address ? `\n📍 ${orderData.customer_address}` : ""}`;
 
                   // Use the sessionApiKey passed from the webhook, fallback to DB lookup
                   let sendApiKey = sessionApiKey || null;

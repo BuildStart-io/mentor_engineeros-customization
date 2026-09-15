@@ -19,6 +19,7 @@ import {
   Settings as SettingsIcon,
   MoreHorizontal,
   Target,
+  CalendarCheck,
   Lock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -32,7 +33,7 @@ const allBusinessNavItems = [
   { href: "/dashboard/leads", label: "Leads", icon: Target, permission: "leads" },
   { href: "/dashboard/products", label: "Products", icon: Package, permission: "products" },
   { href: "/dashboard/faqs", label: "FAQs", icon: HelpCircle, permission: "faqs" },
-  { href: "/dashboard/orders", label: "Orders", icon: ShoppingCart, permission: "orders" },
+  { href: "/dashboard/orders", label: "Bookings & Jobs", icon: CalendarCheck, permission: "orders" },
   { href: "/dashboard/settings", label: "Settings", icon: Settings, permission: "settings" },
 ];
 

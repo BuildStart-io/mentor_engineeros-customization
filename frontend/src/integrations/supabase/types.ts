@@ -337,6 +337,7 @@ export type Database = {
           updated_at: string
           user_id: string
           whatsapp_phone: string | null
+          custom_fields?: Json | null
         }
         Insert: {
           created_at?: string
@@ -353,6 +354,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           whatsapp_phone?: string | null
+          custom_fields?: Json | null
         }
         Update: {
           created_at?: string
@@ -369,6 +371,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           whatsapp_phone?: string | null
+          custom_fields?: Json | null
         }
         Relationships: []
       }
