@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type MediaFolder = "products" | "videos" | "welcome" | "faq";
 
-const FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-storage`;
+const FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/media-storage-mentor-engineeros`;
 
 async function authHeader() {
   const { data: { session } } = await supabase.auth.getSession();

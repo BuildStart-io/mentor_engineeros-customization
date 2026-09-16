@@ -56,7 +56,7 @@ export default function StaffManager() {
     setLoading(true);
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff-mentor-engineeros`,
         {
           method: "POST",
           headers: {
@@ -99,7 +99,7 @@ export default function StaffManager() {
     try {
       const token = await getAuthToken();
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff-mentor-engineeros`,
         {
           method: "POST",
           headers: {
@@ -137,7 +137,7 @@ export default function StaffManager() {
     try {
       const token = await getAuthToken();
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff-mentor-engineeros`,
         {
           method: "POST",
           headers: {
@@ -164,7 +164,7 @@ export default function StaffManager() {
     try {
       const token = await getAuthToken();
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff-mentor-engineeros`,
         {
           method: "POST",
           headers: {
@@ -192,7 +192,7 @@ export default function StaffManager() {
     try {
       const token = await getAuthToken();
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff-mentor-engineeros`,
         {
           method: "POST",
           headers: {
