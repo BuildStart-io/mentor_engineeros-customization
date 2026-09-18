@@ -51,26 +51,6 @@ export default function DetailingCalendar({ orders }: DetailingCalendarProps) {
       })
       .filter(Boolean);
       
-    console.log("Detailing Calendar Parsed Events:", parsedEvents);
-    
-    // Inject a dummy event for testing
-    parsedEvents.push({
-      id: "dummy-123",
-      title: "DUMMY TEST EVENT",
-      start: new Date(2026, 8, 19, 8, 30, 0), // Sep 19, 2026 (Month is 0-indexed)
-      end: new Date(2026, 8, 19, 17, 30, 0),
-      resource: {
-        id: "dummy-123",
-        customer_name: "Dummy Customer",
-        customer_phone: "0771234567",
-        total_amount: 10000,
-        status: "pending",
-        custom_fields: {
-          vehicle_number: "ABC-1234"
-        }
-      } as any
-    });
-    
     return parsedEvents;
   }, [orders]);
 
