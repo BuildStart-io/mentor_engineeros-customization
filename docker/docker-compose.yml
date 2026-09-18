@@ -464,6 +464,21 @@ services:
       SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       # TODO: Allow configuring VERIFY_JWT per function.
       VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT}"
+      
+      # WAHA Integration
+      WAHA_BASE_URL: ${WAHA_BASE_URL}
+      WAHA_API_KEY: ${WAHA_API_KEY}
+      WAHA_DEFAULT_SESSION: ${WAHA_DEFAULT_SESSION}
+      
+      # BuildStart.io edge function secrets
+      AI_GENERATE_URL: ${AI_GENERATE_URL}
+      BOT_API_KEY: ${BOT_API_KEY}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_REGION: ${MINIO_REGION}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON:-}
+      WEBHOOK_URL_OVERRIDE: ${WEBHOOK_URL_OVERRIDE:-}
     command:
       [
         "start",

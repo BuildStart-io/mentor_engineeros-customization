@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import DetailingCalendar from "@/components/DetailingCalendar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -100,7 +101,7 @@ export default function Orders() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
+  const [viewMode, setViewMode] = useState<"table" | "calendar" | "detailing_calendar">("table");
   
   // Finished notification modal state
   const [finishedPromptOrder, setFinishedPromptOrder] = useState<Order | null>(null);
@@ -354,6 +355,14 @@ export default function Orders() {
               >
                 <CalendarIcon className="h-3.5 w-3.5" /> Calendar
               </Button>
+              <Button
+                variant={viewMode === "detailing_calendar" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-8 px-2.5 text-xs gap-1.5"
+                onClick={() => setViewMode("detailing_calendar")}
+              >
+                <Sparkles className="h-3.5 w-3.5" /> Detailing
+              </Button>
             </div>
 
             {/* Category Filter */}
@@ -412,6 +421,8 @@ export default function Orders() {
               </p>
             </CardContent>
           </Card>
+        ) : viewMode === "detailing_calendar" ? (
+          <DetailingCalendar orders={filteredOrders} />
         ) : viewMode === "calendar" ? (
           /* Calendar Style Booking View */
           <div className="space-y-6">

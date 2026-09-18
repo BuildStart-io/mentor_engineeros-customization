@@ -176,6 +176,50 @@ serve(async (req) => {
     // Get list of tracked FAQ IDs
     const trackedFaqIds = faqs.filter(f => f.is_tracked).map(f => f.id);
 
+    // Fetch upcoming booked detailing dates
+    const { data: openOrders } = await supabase
+      .from("orders")
+      .select("custom_fields")
+      .eq("user_id", userId)
+      .not("status", "eq", "cancelled")
+      .not("status", "eq", "delivered")
+      .not("status", "eq", "finished");
+    
+    const bookedDates = (openOrders || [])
+      .filter(o => {
+        const cf = o.custom_fields as Record<string, any>;
+        return cf?.service_category === "detailing" || cf?.service_category === "Detailing & Polish" || (Array.isArray(cf?.add_ons) && cf.add_ons.some(a => (a as string).toLowerCase().includes("detail")));
+      })
+      .map(o => (o.custom_fields as Record<string, any>)?.booking_date)
+      .filter(Boolean);
+
+    // Calculate Holidays (5 years: 2025-2029)
+    const poyaDays = [
+      "2025-01-13", "2025-02-12", "2025-03-13", "2025-04-12", "2025-05-12", "2025-06-10", "2025-07-10", "2025-08-08", "2025-09-07", "2025-10-06", "2025-11-05", "2025-12-04",
+      "2026-01-03", "2026-02-01", "2026-03-03", "2026-04-01", "2026-05-01", "2026-05-31", "2026-06-29", "2026-07-28", "2026-08-27", "2026-09-25", "2026-10-25", "2026-11-24", "2026-12-23",
+      "2027-01-22", "2027-02-20", "2027-03-22", "2027-04-20", "2027-05-20", "2027-06-18", "2027-07-18", "2027-08-16", "2027-09-15", "2027-10-14", "2027-11-13", "2027-12-12",
+      "2028-01-11", "2028-02-09", "2028-03-10", "2028-04-09", "2028-05-08", "2028-06-07", "2028-07-06", "2028-08-05", "2028-09-03", "2028-10-03", "2028-11-01", "2028-12-01", "2028-12-31",
+      "2029-01-29", "2029-02-28", "2029-03-29", "2029-04-28", "2029-05-27", "2029-06-26", "2029-07-25", "2029-08-24", "2029-09-22", "2029-10-22", "2029-11-20", "2029-12-20"
+    ];
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const holidayRulesContext = `
+[DETAILING_SERVICE_AVAILABILITY]
+The following dates are ALREADY BOOKED and strictly UNAVAILABLE for detailing: ${bookedDates.length > 0 ? bookedDates.join(", ") : "None currently booked"}. Only 1 detailing vehicle is allowed per day.
+Tuesdays are ALWAYS closed for detailing.
+Poya days are ALWAYS closed. Poya dates: ${poyaDays.join(", ")}.
+If a date falls exactly between a Tuesday and a Poya day, it is also a holiday. Do NOT suggest such dates.
+Today's Date: ${todayStr}
+When the customer wants to book a detailing service, you MUST explicitly suggest the NEXT 3 AVAILABLE DATES for them to choose from.
+To find the next 3 available dates:
+1. Start from Tomorrow.
+2. Check if the date is a Tuesday, a Poya day, a bridge holiday, or already booked.
+3. If it is FREE, add it to your list of suggestions.
+4. Keep checking consecutive days until you have exactly 3 available dates.
+5. Present these 3 dates clearly to the customer.
+When the customer confirms one of the valid available dates, you MUST instruct them to arrive at the workshop at 8:30 AM.
+`;
+
     const conversationContext = (((conversationHistory || []) as ConversationMessage[]) || [])
       .map(msg => `${msg.direction === "inbound" ? "Customer" : "Assistant"}: ${msg.message}`)
       .join("\n");
@@ -247,6 +291,8 @@ ${productCatalog || "No products available"}
 
 FREQUENTLY ASKED QUESTIONS:
 ${faqContext || "No FAQs configured"}
+
+${holidayRulesContext}
 
 WELCOME MESSAGE (for first-time customers):
 ${welcomeMessage}

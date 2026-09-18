@@ -286,8 +286,10 @@ export default function Settings() {
       let finalStatus = returnedStatus;
 
       // If QR code is not ready yet because WAHA is starting, poll a few times
-      if (!finalImage && !finalQr && returnedStatus !== "connected") {
-        for (let attempt = 0; attempt < 6; attempt++) {
+      // If it says "connected", stop here
+      // If no QR yet but not failed, start polling
+      if (!finalImage && !finalQr && !["connected", "failed", "stopped"].includes(finalStatus?.toLowerCase())) {
+        for (let attempt = 0; attempt < 35; attempt++) {
           await new Promise((r) => setTimeout(r, 2500));
           try {
             const pollRes = await fetch(`${baseUrl}?action=get-qr&sessionId=${sessionId}`, {
