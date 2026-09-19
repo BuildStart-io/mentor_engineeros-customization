@@ -14,6 +14,7 @@ interface Order {
   customer_phone: string;
   total_amount: number;
   status: string;
+  created_at: string;
   custom_fields?: Record<string, any> | null;
 }
 
@@ -27,19 +28,28 @@ export default function DetailingCalendar({ orders }: DetailingCalendarProps) {
       .filter(o => {
         const cf = o.custom_fields;
         if (!cf) return false;
+        const cat = (cf.service_category || '').toLowerCase();
         return (
-          cf.service_category === 'detailing' || 
-          cf.service_category === 'Detailing & Polish' ||
+          cat === 'detailing' || 
+          cat === 'detailing & polish' ||
           (Array.isArray(cf.add_ons) && cf.add_ons.some((a: string) => a.toLowerCase().includes('detail')))
         );
       })
       .map(o => {
-        const dateStr = o.custom_fields?.booking_date;
+        // Fallback to order creation date if no explicit booking_date
+        const dateStr = o.custom_fields?.booking_date || moment(o.created_at).format('YYYY-MM-DD');
         if (!dateStr) return null;
         
         // 8:30 AM arrival time
-        const start = moment(`${dateStr}T08:30:00`).toDate();
-        const end = moment(`${dateStr}T17:30:00`).toDate(); // Assume full day job
+        // If dateStr is somehow invalid, moment will fallback to Invalid Date, but we try our best.
+        let start = moment(`${dateStr}T08:30:00`).toDate();
+        let end = moment(`${dateStr}T17:30:00`).toDate(); // Assume full day job
+
+        // Safety check if date parsed incorrectly
+        if (isNaN(start.getTime())) {
+           start = moment(o.created_at).set({ hour: 8, minute: 30, second: 0 }).toDate();
+           end = moment(o.created_at).set({ hour: 17, minute: 30, second: 0 }).toDate();
+        }
         
         return {
           id: o.id,
