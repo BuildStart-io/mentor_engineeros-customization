@@ -12,6 +12,15 @@ serve(async (req) => {
   }
 
   try {
+    const authHeaderIn = req.headers.get("authorization");
+    const expectedAuth = "Bearer BqYyRuLErSkzhymBZmfGrTZhFPhdmX";
+    if (!authHeaderIn || authHeaderIn !== expectedAuth) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { 
+        status: 401, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      });
+    }
+
     if (req.method !== "POST" && req.method !== "GET") {
       throw new Error("Method not allowed. Please use POST or GET.");
     }
@@ -60,7 +69,7 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const sendWhatsappUrl = `${supabaseUrl}/functions/v1/send-whatsapp-mentor-engineeros`;
-    const authHeader = req.headers.get("authorization") || `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`;
+    const authHeader = `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`;
 
     const results = [];
 
