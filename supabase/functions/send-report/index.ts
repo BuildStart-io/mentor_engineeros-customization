@@ -12,96 +12,126 @@ serve(async (req) => {
   }
 
   try {
-    // We only accept POST for file uploads
-    if (req.method !== "POST") {
-      throw new Error("Method not allowed. Please use POST.");
+    if (req.method !== "POST" && req.method !== "GET") {
+      throw new Error("Method not allowed. Please use POST or GET.");
     }
 
-    // Ensure it's multipart/form-data
-    const contentType = req.headers.get("content-type") || "";
-    if (!contentType.includes("multipart/form-data")) {
-      throw new Error("Invalid Content-Type. Please use multipart/form-data");
+    const url = new URL(req.url);
+    let numbersRaw = url.searchParams.get("numbers") || url.searchParams.get("number") || "";
+    let message = url.searchParams.get("message") || "";
+    let documentUrl = url.searchParams.get("document_url") || url.searchParams.get("document") || url.searchParams.get("file_url") || "";
+
+    // If POST, also try parsing FormData or JSON just in case they send it in the body
+    if (req.method === "POST") {
+      const contentType = req.headers.get("content-type") || "";
+      if (contentType.includes("application/x-www-form-urlencoded") || contentType.includes("multipart/form-data")) {
+        try {
+          const formData = await req.formData();
+          numbersRaw = formData.get("numbers")?.toString() || formData.get("number")?.toString() || numbersRaw;
+          message = formData.get("message")?.toString() || message;
+          documentUrl = formData.get("document_url")?.toString() || formData.get("document")?.toString() || formData.get("file_url")?.toString() || documentUrl;
+        } catch (e) {
+          console.warn("Failed to parse form data:", e);
+        }
+      } else if (contentType.includes("application/json")) {
+        try {
+          const jsonData = await req.json();
+          numbersRaw = jsonData.numbers || jsonData.number || numbersRaw;
+          message = jsonData.message || message;
+          documentUrl = jsonData.document_url || jsonData.document || jsonData.file_url || documentUrl;
+        } catch (e) {
+          console.warn("Failed to parse JSON body:", e);
+        }
+      }
     }
 
-    // Parse the form data
-    const formData = await req.formData();
-    const whatsappNumber = formData.get("whatsapp_number");
-    const message = formData.get("message") || "";
-    const file = formData.get("file") as File;
-
-    if (!whatsappNumber) {
-      throw new Error("whatsapp_number is required");
-    }
-    if (!file) {
-      throw new Error("file is required");
+    if (!numbersRaw) {
+      throw new Error("number(s) are required. Please provide a phone number or a comma-separated list of numbers.");
     }
 
-    // Initialize Supabase Admin client to bypass RLS for uploading
+    // Split numbers by comma, remove whitespace, and filter empty strings
+    let numbersList = typeof numbersRaw === "string" 
+      ? numbersRaw.split(",").map(n => n.trim()).filter(Boolean)
+      : Array.isArray(numbersRaw) ? numbersRaw : [String(numbersRaw)];
+
+    if (numbersList.length === 0) {
+      throw new Error("No valid numbers provided.");
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Generate unique filename to prevent overwrites
-    const fileExt = file.name ? file.name.split(".").pop() : "pdf";
-    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-
-    console.log(`Uploading report for ${whatsappNumber}: ${fileName}`);
-
-    // Upload to 'reports' bucket
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from("reports")
-      .upload(fileName, file, {
-        contentType: file.type,
-        upsert: false
-      });
-
-    if (uploadError) {
-      console.error("Upload error:", uploadError);
-      throw new Error(`Failed to upload file: ${uploadError.message}`);
-    }
-
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage.from("reports").getPublicUrl(fileName);
-    console.log(`File uploaded successfully: ${publicUrl}`);
-
-    // Forward to existing send-whatsapp edge function
     const sendWhatsappUrl = `${supabaseUrl}/functions/v1/send-whatsapp`;
-    console.log(`Forwarding to WAHA via: ${sendWhatsappUrl}`);
-
     const authHeader = req.headers.get("authorization") || `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`;
 
-    const sendRes = await fetch(sendWhatsappUrl, {
-      method: "POST",
-      headers: {
-        "Authorization": authHeader,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        to: whatsappNumber,
-        message: message,
-        mediaUrl: publicUrl
-      })
-    });
+    const results = [];
 
-    if (!sendRes.ok) {
-      const errText = await sendRes.text();
-      console.error("send-whatsapp error:", errText);
-      throw new Error(`Failed to send WhatsApp message: ${errText}`);
+    // Loop through all numbers and send the message/document
+    for (const whatsappNumber of numbersList) {
+      try {
+        console.log(`Sending to WAHA for ${whatsappNumber}...`);
+        
+        const payload: any = {
+          to: whatsappNumber
+        };
+        
+        if (message) payload.message = message;
+        if (documentUrl) payload.mediaUrl = documentUrl;
+        
+        // If neither message nor document is provided
+        if (!message && !documentUrl) {
+          throw new Error("Both message and document_url are missing. Cannot send an empty message.");
+        }
+
+        const sendRes = await fetch(sendWhatsappUrl, {
+          method: "POST",
+          headers: {
+            "Authorization": authHeader,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!sendRes.ok) {
+          const errText = await sendRes.text();
+          throw new Error(`WAHA integration failed: ${errText}`);
+        }
+
+        results.push({
+          number: whatsappNumber,
+          success: true
+        });
+
+      } catch (err: any) {
+        console.error(`Failed to send to ${whatsappNumber}:`, err.message);
+        results.push({
+          number: whatsappNumber,
+          success: false,
+          error: err.message
+        });
+        // We DO NOT throw here, we just continue to the next number
+      }
     }
+
+    // Calculate overall success
+    const totalCount = results.length;
+    const successCount = results.filter(r => r.success).length;
+    const isOverallSuccess = successCount > 0;
 
     return new Response(
       JSON.stringify({ 
-        success: true, 
-        message: "Report sent successfully",
-        file_url: publicUrl
+        success: isOverallSuccess, 
+        message: `Processed ${totalCount} numbers. Sent successfully: ${successCount}, Failed: ${totalCount - successCount}`,
+        details: results
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { 
+        status: isOverallSuccess ? 200 : 400, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
     );
 
   } catch (error: any) {
-    console.error("Error in send-report:", error.message);
+    console.error("send-report global error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ success: false, error: error.message }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
