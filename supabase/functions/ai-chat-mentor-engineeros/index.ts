@@ -179,7 +179,7 @@ serve(async (req) => {
     // Fetch upcoming booked detailing dates
     const { data: openOrders } = await supabase
       .from("orders")
-      .select("custom_fields")
+      .select("custom_fields, created_at")
       .eq("user_id", userId)
       .not("status", "eq", "cancelled")
       .not("status", "eq", "delivered")
@@ -188,9 +188,13 @@ serve(async (req) => {
     const bookedDates = (openOrders || [])
       .filter(o => {
         const cf = o.custom_fields as Record<string, any>;
-        return cf?.service_category === "detailing" || cf?.service_category === "Detailing & Polish" || (Array.isArray(cf?.add_ons) && cf.add_ons.some(a => (a as string).toLowerCase().includes("detail")));
+        const category = (cf?.service_category || "").toLowerCase();
+        return category === "detailing" || category === "detailing & polish" || (Array.isArray(cf?.add_ons) && cf.add_ons.some(a => (a as string).toLowerCase().includes("detail")));
       })
-      .map(o => (o.custom_fields as Record<string, any>)?.booking_date)
+      .map(o => {
+        const cf = o.custom_fields as Record<string, any>;
+        return cf?.booking_date || (o.created_at ? o.created_at.split('T')[0] : null);
+      })
       .filter(Boolean);
 
     // Calculate Holidays (5 years: 2025-2029)
@@ -755,7 +759,7 @@ Whenever the customer selects a service package or an engine oil:
 
 - STRICT PROHIBITION: DO NOT ask for Appointment Date, Time Slot, Vehicle Registration Number, or Customer Name yet! You must wait for their answer about add-ons first.
 - ONLY in the subsequent turn after they answer about add-ons (whether they choose an add-on or say no), ask for:
-  📅 Preferred Appointment Date & Time Slot
+  📅 Preferred Appointment Date & Time Slot (NOTE: If booking Detailing, you MUST explicitly suggest the next 3 available dates based on the [DETAILING_SERVICE_AVAILABILITY] rules provided earlier)
   🚗 Vehicle Registration Number
   👤 Customer Name
 
