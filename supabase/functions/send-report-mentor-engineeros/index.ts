@@ -59,7 +59,7 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const sendWhatsappUrl = `${supabaseUrl}/functions/v1/send-whatsapp`;
+    const sendWhatsappUrl = `${supabaseUrl}/functions/v1/send-whatsapp-mentor-engineeros`;
     const authHeader = req.headers.get("authorization") || `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`;
 
     const results = [];
