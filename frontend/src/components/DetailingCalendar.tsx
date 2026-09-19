@@ -79,13 +79,28 @@ export default function DetailingCalendar({ orders }: DetailingCalendarProps) {
           <Car className="h-3 w-3 shrink-0" />
           <span>{cf.vehicle_number || "No Plate"}</span>
         </div>
-        <div className="flex items-center gap-1.5 truncate text-white/90">
-          <Wallet className="h-3 w-3 shrink-0" />
-          <span>LKR {o.total_amount.toFixed(2)}</span>
+        <div className="flex items-center gap-1.5 truncate text-white/90 text-[10px]">
+          <span>{cf.service_package || "Detailing"}</span>
         </div>
-        <div className="flex items-center gap-1.5 truncate text-white/90">
-          <Clock className="h-3 w-3 shrink-0" />
-          <span>8:30 AM</span>
+        {Array.isArray(o.order_items) && o.order_items.length > 1 && (
+          <div className="flex flex-wrap gap-0.5">
+            {o.order_items
+              .filter((item: any) => item.name !== (cf.service_package || "Detailing"))
+              .map((item: any, i: number) => (
+              <Badge key={i} className="text-[8px] px-1 py-0 h-3 bg-white/20 text-white hover:bg-white/30 border-none">
+                +{item.name}
+              </Badge>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center justify-between mt-auto pt-1 border-t border-white/20">
+          <div className="flex items-center gap-1 truncate text-white font-semibold text-[10px]">
+            <span>LKR {o.total_amount.toFixed(2)}</span>
+          </div>
+          <div className="flex items-center gap-1 truncate text-white/90 text-[10px]">
+            <Clock className="h-2.5 w-2.5 shrink-0" />
+            <span>8:30 AM</span>
+          </div>
         </div>
       </div>
     );

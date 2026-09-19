@@ -409,6 +409,8 @@ export default function Orders() {
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
+        ) : viewMode === "detailing_calendar" ? (
+          <DetailingCalendar orders={filteredOrders} />
         ) : filteredOrders.length === 0 ? (
           <Card>
             <CardContent className="text-center py-12">
@@ -421,8 +423,6 @@ export default function Orders() {
               </p>
             </CardContent>
           </Card>
-        ) : viewMode === "detailing_calendar" ? (
-          <DetailingCalendar orders={filteredOrders} />
         ) : viewMode === "calendar" ? (
           /* Calendar Style Booking View */
           <div className="space-y-6">
@@ -503,6 +503,17 @@ export default function Orders() {
                               <span className="text-muted-foreground flex items-center gap-1">
                                 <Droplet className="h-3 w-3 text-amber-500" /> {cf.engine_oil}
                               </span>
+                            )}
+                            {Array.isArray(order.order_items) && order.order_items.length > 1 && (
+                              <div className="flex flex-wrap gap-1 mt-0.5">
+                                {order.order_items
+                                  .filter((item: any) => item.name !== service)
+                                  .map((item: any, i: number) => (
+                                  <Badge key={i} variant="secondary" className="text-[9px] px-1 py-0 h-4">
+                                    +{item.name}
+                                  </Badge>
+                                ))}
+                              </div>
                             )}
                           </div>
 
@@ -679,11 +690,13 @@ export default function Orders() {
                                   <Droplet className="h-3 w-3 text-amber-500" /> {eOil}
                                 </p>
                               )}
-                              {cf.add_ons && cf.add_ons.length > 0 && (
+                              {Array.isArray(order.order_items) && order.order_items.length > 1 && (
                                 <div className="flex gap-1 flex-wrap mt-1">
-                                  {cf.add_ons.map((addon: string, i: number) => (
+                                  {order.order_items
+                                    .filter((item: any) => item.name !== sPackage)
+                                    .map((item: any, i: number) => (
                                     <Badge key={i} variant="secondary" className="text-[10px] px-1 py-0">
-                                      +{addon}
+                                      +{item.name}
                                     </Badge>
                                   ))}
                                 </div>
