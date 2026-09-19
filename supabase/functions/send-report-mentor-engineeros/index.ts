@@ -78,30 +78,40 @@ serve(async (req) => {
       try {
         console.log(`Sending to WAHA for ${whatsappNumber}...`);
         
-        const payload: any = {
-          to: whatsappNumber
-        };
-        
-        if (message) payload.message = message;
-        if (documentUrl) payload.mediaUrl = documentUrl;
-        
-        // If neither message nor document is provided
-        if (!message && !documentUrl) {
+        let urls = typeof documentUrl === "string" 
+          ? documentUrl.split(",").map(u => u.trim()).filter(Boolean)
+          : Array.isArray(documentUrl) ? documentUrl : [String(documentUrl)].filter(Boolean);
+          
+        if (!message && urls.length === 0) {
           throw new Error("Both message and document_url are missing. Cannot send an empty message.");
         }
 
-        const sendRes = await fetch(sendWhatsappUrl, {
-          method: "POST",
-          headers: {
-            "Authorization": authHeader,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(payload)
-        });
-
-        if (!sendRes.ok) {
-          const errText = await sendRes.text();
-          throw new Error(`WAHA integration failed: ${errText}`);
+        if (urls.length === 0) {
+          // Just send a text message
+          const payload = { to: whatsappNumber, message: message };
+          const sendRes = await fetch(sendWhatsappUrl, {
+            method: "POST",
+            headers: { "Authorization": authHeader, "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          if (!sendRes.ok) throw new Error(`WAHA text failed: ${await sendRes.text()}`);
+        } else {
+          // Send each URL. Attach the message as the caption for the first URL.
+          for (let i = 0; i < urls.length; i++) {
+            const payload: any = { to: whatsappNumber, mediaUrl: urls[i] };
+            if (i === 0 && message) {
+              payload.message = message;
+            }
+            const sendRes = await fetch(sendWhatsappUrl, {
+              method: "POST",
+              headers: { "Authorization": authHeader, "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+            if (!sendRes.ok) throw new Error(`WAHA media (url ${i+1}) failed: ${await sendRes.text()}`);
+            
+            // Wait 1 second between files so they appear in correct order
+            if (i < urls.length - 1) await new Promise(r => setTimeout(r, 1000));
+          }
         }
 
         results.push({
