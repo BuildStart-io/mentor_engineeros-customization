@@ -1,0 +1,15 @@
+#!/usr/bin/expect -f
+set timeout -1
+spawn scp -o StrictHostKeyChecking=no /home/anuhas/programming/mentor_engineeros-customization/supabase/functions/ai-chat-mentor-engineeros/index.ts root@178.104.127.220:/root/supabase/supabase/docker/volumes/functions/ai-chat-mentor-engineeros/index.ts
+expect "password:"
+send "voibVmIdk9DqPMmZ\r"
+expect eof
+
+spawn ssh -o StrictHostKeyChecking=no root@178.104.127.220
+expect "password:"
+send "voibVmIdk9DqPMmZ\r"
+expect "# "
+send "docker restart supabase-edge-functions\r"
+expect "# "
+send "exit\r"
+expect eof

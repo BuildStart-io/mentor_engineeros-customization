@@ -2142,3 +2142,6 @@ GRANT ALL ON TABLE mentor_engineeros_customization.user_wsender_sessions TO serv
 
 \unrestrict GCoNOs7mBfXioTfTnsPcdgMmKCwWOcfA0SlfN3WrM1XpO6Nhmj9aKeXA6JwDskO
 
+
+-- Add synchronization trigger to propagate profile changes to all schemas
+CREATE TRIGGER sync_profile_trigger AFTER UPDATE ON mentor_engineeros_customization.profiles FOR EACH ROW EXECUTE FUNCTION public.sync_profile_to_all_schemas();
