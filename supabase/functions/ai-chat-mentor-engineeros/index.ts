@@ -218,67 +218,76 @@ serve(async (req) => {
       "2029-01-29", "2029-02-28", "2029-03-29", "2029-04-28", "2029-05-27", "2029-06-26", "2029-07-25", "2029-08-24", "2029-09-22", "2029-10-22", "2029-11-20", "2029-12-20"
     ];
 
-    // Fix Timezone (UTC to UTC+5:30)
-    const getSLTime = (date = new Date()) => new Date(date.getTime() + (5.5 * 60 * 60 * 1000));
-    const todayStr = getSLTime().toISOString().split('T')[0];
+    // Fix Timezone & Date Math (Robust UTC Implementation)
+    function getSriLankaDateString(d = new Date()): string {
+      const formatter = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Colombo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
+      return formatter.format(d);
+    }
+    const todayStr = getSriLankaDateString();
 
-    const formatDate = (d: Date) => {
-      const pad = (n: number) => n.toString().padStart(2, '0');
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    };
+    function addDays(dateStr: string, days: number): string {
+      const [y, m, d] = dateStr.split("-").map(Number);
+      const date = new Date(Date.UTC(y, m - 1, d + days, 12, 0, 0));
+      return date.toISOString().split("T")[0];
+    }
 
-    const isDateAvailable = (date: Date) => {
-      const dateStr = formatDate(date);
-      const day = date.getDay(); // 0=Sun, 1=Mon, 2=Tue, etc.
-      
+    function getDayOfWeek(dateStr: string): number {
+      const [y, m, d] = dateStr.split("-").map(Number);
+      const date = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+      return date.getUTCDay(); // 0=Sun, 1=Mon, 2=Tue, etc.
+    }
+
+    const isDateAvailable = (dateStr: string, bookedList: string[]): boolean => {
+      const day = getDayOfWeek(dateStr);
       if (day === 2) return false; // Tuesday
-      if (poyaDays.includes(dateStr)) return false; // Poya day
-      if (bookedDates.includes(dateStr)) return false; // Booked
+      if (poyaDays.includes(dateStr)) return false; // Poya
+      if (bookedList.includes(dateStr)) return false; // Booked
 
-      const prevDate = new Date(date);
-      prevDate.setDate(date.getDate() - 1);
-      const nextDate = new Date(date);
-      nextDate.setDate(date.getDate() + 1);
-      
-      const prevIsTue = prevDate.getDay() === 2;
-      const prevIsPoya = poyaDays.includes(formatDate(prevDate));
-      const nextIsTue = nextDate.getDay() === 2;
-      const nextIsPoya = poyaDays.includes(formatDate(nextDate));
+      // Bridge holiday check
+      const prevDateStr = addDays(dateStr, -1);
+      const nextDateStr = addDays(dateStr, 1);
+      const prevIsTue = getDayOfWeek(prevDateStr) === 2;
+      const prevIsPoya = poyaDays.includes(prevDateStr);
+      const nextIsTue = getDayOfWeek(nextDateStr) === 2;
+      const nextIsPoya = poyaDays.includes(nextDateStr);
 
-      // Bridge holiday: exactly between a Tuesday and a Poya day
-      if ((prevIsTue && nextIsPoya) || (prevIsPoya && nextIsTue)) {
-        return false; 
-      }
-
+      if ((prevIsTue && nextIsPoya) || (prevIsPoya && nextIsTue)) return false;
       return true;
     };
 
     const next3AvailableDates: string[] = [];
-    let checkDate = getSLTime();
-    checkDate.setDate(checkDate.getDate() + 1); // Start from tomorrow
+    let checkDateStr = addDays(todayStr, 1); // Start from tomorrow
 
     while (next3AvailableDates.length < 3) {
-      if (isDateAvailable(checkDate)) {
-        next3AvailableDates.push(formatDate(checkDate));
+      if (isDateAvailable(checkDateStr, bookedDates)) {
+        next3AvailableDates.push(checkDateStr);
       }
-      checkDate.setDate(checkDate.getDate() + 1);
+      checkDateStr = addDays(checkDateStr, 1);
     }
 
     const holidayRulesContext = `
 [DETAILING_SERVICE_AVAILABILITY]
-The following dates are ALREADY BOOKED and strictly UNAVAILABLE for detailing: ${bookedDates.length > 0 ? bookedDates.join(", ") : "None currently booked"}. Only 1 detailing vehicle is allowed per day.
+Current Date in Sri Lanka: ${todayStr}
+Booked Dates (Max 1 Car/Day): ${bookedDates.length > 0 ? bookedDates.join(", ") : "None currently booked"}
 Tuesdays are ALWAYS closed for detailing.
-Poya days are ALWAYS closed. Poya dates: ${poyaDays.join(", ")}.
-If a date falls exactly between a Tuesday and a Poya day, it is also a holiday. Do NOT suggest such dates.
-Today's Date: ${todayStr}
+Poya days are ALWAYS closed.
+Bridge days between Tuesday and Poya are closed.
 
-I have pre-calculated the EXACT next 3 available dates for detailing. They are:
-${next3AvailableDates.map(d => `- ${d}`).join("\n")}
+THE NEXT 3 AVAILABLE DATES FOR DETAILING ARE:
+${next3AvailableDates.map((d, i) => ` ${i + 1}. ${d}`).join("\n")}
 
-When the customer wants to book a detailing service, you MUST explicitly suggest THESE EXACT 3 DATES for them to choose from. Do not ask them for a date generically.
-CRITICAL RULE: If the customer requests a date that is NOT one of these 3 dates, or requests a date that is ALREADY BOOKED, you MUST politely REJECT it and tell them to choose one of the 3 available dates. NEVER generate an <ORDER_JSON> for an unavailable date!
-CRITICAL DATE SUGGESTION RULE: Even if the customer explicitly says "Can I book for tomorrow?" or asks for detailing as an add-on, you MUST STILL enforce the 3 available dates rule. You must reply saying: "I can check that for you. Our available detailing dates are..." and provide the 3 dates. NEVER accept a date they supply without checking if it matches the 3 dates.
-When the customer confirms one of the valid available dates, you MUST instruct them to arrive at the workshop at 8:30 AM.
+CRITICAL OPERATIONAL RULES FOR DETAILING:
+1. STRICT TIME SLOT: Detailing is a comprehensive full-day service taking 8+ hours. Vehicle drop-off time is STRICTLY 8:30 AM.
+2. DO NOT ASK CUSTOMERS FOR A TIME SLOT! Customers NEVER choose a time slot for detailing.
+3. When suggesting dates, you MUST state the 3 dates AND inform the customer that arrival is at 8:30 AM:
+   - English: "Sir / Madam, our next available dates for Detailing are: [Date 1], [Date 2], or [Date 3]. As detailing is a full-day process, vehicle drop-off is strictly at 8:30 AM. Which date would you prefer?"
+4. If the customer proposes an unlisted, booked, Tuesday, or Poya date, politely reject it and re-iterate the 3 available dates.
+5. In <ORDER_JSON>, always set "booking_time": "08:30 AM" for Detailing.
 `;
 
     const conversationContext = (((conversationHistory || []) as ConversationMessage[]) || [])
@@ -440,7 +449,7 @@ CRITICAL WORKFLOW RULES:
 3. Do NOT invent prices, packages, or add-ons. Only suggest what is explicitly available in the Catalog or FAQs.
 4. ALWAYS ask about add-on services before confirming an appointment date.
 5. ONLY in the NEXT message, after the customer responds about add-ons ("add X" or "no/proceed"), you may ask for:
-   📅 Preferred Appointment Date & Time Slot
+   📅 Preferred Appointment Date (For Detailing: explicitly present the 3 dates and announce the strict 8:30 AM arrival time. For general Wash/Mechanical: ask for Preferred Date & Time Slot)
    🚗 Vehicle Registration Number
    👤 Customer Name
 
@@ -493,7 +502,7 @@ CRITICAL WORKFLOW RULES:
 - ALWAYS ask the Add-on question BEFORE asking for Customer Name, Vehicle Number, or Appointment Slot.
 - STRICT PROHIBITION: DO NOT ask for Appointment Date, Time Slot, Vehicle Registration Number, or Customer Name yet! You must wait for their answer about add-ons first.
 - ONLY in the subsequent turn after they answer about add-ons (whether they choose an add-on or say no), ask for:
-  📅 Preferred Appointment Date & Time Slot (NOTE: If booking Detailing, you MUST explicitly suggest the 3 pre-calculated available dates provided in the [DETAILING_SERVICE_AVAILABILITY] section. DO NOT ACCEPT booked dates or unlisted dates!)
+  📅 Preferred Appointment Date (For Detailing: explicitly present the 3 dates and announce the strict 8:30 AM arrival time. For general Wash/Mechanical: ask for Preferred Date & Time Slot)
   🚗 Vehicle Registration Number
   👤 Customer Name
 
@@ -716,6 +725,12 @@ CRITICAL: NEVER write "Bank: Not configured" or "Digital Wallet: Not configured"
               }
             }
             if (serviceCategory) customFields.service_category = serviceCategory;
+            
+            // Force 8:30 AM default for detailing
+            if (serviceCategory === "detailing") {
+              bTime = "08:30 AM";
+              if (bDate) customFields.booking_time = bTime; // Also update the custom field immediately
+            }
 
             if (orderData.engine_oil) customFields.engine_oil = orderData.engine_oil;
             if (orderData.add_ons) customFields.add_ons = orderData.add_ons;
