@@ -29,27 +29,32 @@ export default function DetailingCalendar({ orders }: DetailingCalendarProps) {
         const cf = o.custom_fields;
         if (!cf) return false;
         const cat = (cf.service_category || '').toLowerCase();
+        const pkg = (cf.service_package || '').toLowerCase();
         return (
           cat === 'detailing' || 
           cat === 'detailing & polish' ||
-          (Array.isArray(cf.add_ons) && cf.add_ons.some((a: string) => a.toLowerCase().includes('detail')))
+          pkg.includes('detail') ||
+          pkg.includes('polish') ||
+          (Array.isArray(cf.add_ons) && cf.add_ons.some((a: string) => a.toLowerCase().includes('detail'))) ||
+          (Array.isArray(o.order_items) && o.order_items.some((i: any) => (i.name || '').toLowerCase().includes('detail') || (i.name || '').toLowerCase().includes('polish')))
         );
       })
       .map(o => {
         // Fallback to order creation date if no explicit booking_date
-        const dateStr = o.custom_fields?.booking_date || moment(o.created_at).format('YYYY-MM-DD');
+        const dateStr = o.custom_fields?.booking_date;
         if (!dateStr) return null;
         
-        // 8:30 AM arrival time
-        // If dateStr is somehow invalid, moment will fallback to Invalid Date, but we try our best.
-        let start = moment(`${dateStr}T08:30:00`).toDate();
-        let end = moment(`${dateStr}T17:30:00`).toDate(); // Assume full day job
-
-        // Safety check if date parsed incorrectly
-        if (isNaN(start.getTime())) {
-           start = moment(o.created_at).set({ hour: 8, minute: 30, second: 0 }).toDate();
-           end = moment(o.created_at).set({ hour: 17, minute: 30, second: 0 }).toDate();
+        // Multi-format parsing
+        let parsed = moment(dateStr, ['YYYY-MM-DD', 'YYYY/MM/DD', 'DD-MM-YYYY', 'DD/MM/YYYY', moment.ISO_8601], true);
+        if (!parsed.isValid()) {
+          parsed = moment(dateStr); // Try generic parsing if exact formats fail
         }
+        
+        const finalMoment = parsed.isValid() ? parsed : moment(o.created_at);
+        
+        // 8:30 AM arrival time
+        let start = finalMoment.clone().set({ hour: 8, minute: 30, second: 0 }).toDate();
+        let end = finalMoment.clone().set({ hour: 17, minute: 30, second: 0 }).toDate();
         
         return {
           id: o.id,
@@ -139,6 +144,7 @@ export default function DetailingCalendar({ orders }: DetailingCalendarProps) {
             style={{ height: '100%' }}
             views={['month', 'week', 'day']}
             defaultView="month"
+            popup={true}
             components={{
               event: CustomEvent
             }}

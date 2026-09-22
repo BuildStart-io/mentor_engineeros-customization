@@ -193,7 +193,19 @@ serve(async (req) => {
       })
       .map(o => {
         const cf = o.custom_fields as Record<string, any>;
-        return cf?.booking_date || (o.created_at ? o.created_at.split('T')[0] : null);
+        let bDate = cf?.booking_date;
+        if (bDate) {
+          // Attempt to normalize dates from db (e.g. September 24th, 24/09/2026) to YYYY-MM-DD
+          try {
+            const parsed = new Date(bDate);
+            if (!isNaN(parsed.getTime())) {
+              bDate = parsed.toISOString().split('T')[0];
+            }
+          } catch (e) {
+            // keep as is
+          }
+        }
+        return bDate || (o.created_at ? o.created_at.split('T')[0] : null);
       })
       .filter(Boolean);
 
@@ -206,7 +218,9 @@ serve(async (req) => {
       "2029-01-29", "2029-02-28", "2029-03-29", "2029-04-28", "2029-05-27", "2029-06-26", "2029-07-25", "2029-08-24", "2029-09-22", "2029-10-22", "2029-11-20", "2029-12-20"
     ];
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    // Fix Timezone (UTC to UTC+5:30)
+    const getSLTime = (date = new Date()) => new Date(date.getTime() + (5.5 * 60 * 60 * 1000));
+    const todayStr = getSLTime().toISOString().split('T')[0];
 
     const formatDate = (d: Date) => {
       const pad = (n: number) => n.toString().padStart(2, '0');
@@ -240,7 +254,7 @@ serve(async (req) => {
     };
 
     const next3AvailableDates: string[] = [];
-    let checkDate = new Date();
+    let checkDate = getSLTime();
     checkDate.setDate(checkDate.getDate() + 1); // Start from tomorrow
 
     while (next3AvailableDates.length < 3) {
@@ -263,6 +277,7 @@ ${next3AvailableDates.map(d => `- ${d}`).join("\n")}
 
 When the customer wants to book a detailing service, you MUST explicitly suggest THESE EXACT 3 DATES for them to choose from. Do not ask them for a date generically.
 CRITICAL RULE: If the customer requests a date that is NOT one of these 3 dates, or requests a date that is ALREADY BOOKED, you MUST politely REJECT it and tell them to choose one of the 3 available dates. NEVER generate an <ORDER_JSON> for an unavailable date!
+CRITICAL DATE SUGGESTION RULE: Even if the customer explicitly says "Can I book for tomorrow?" or asks for detailing as an add-on, you MUST STILL enforce the 3 available dates rule. You must reply saying: "I can check that for you. Our available detailing dates are..." and provide the 3 dates. NEVER accept a date they supply without checking if it matches the 3 dates.
 When the customer confirms one of the valid available dates, you MUST instruct them to arrive at the workshop at 8:30 AM.
 `;
 
@@ -503,7 +518,7 @@ In <ORDER_JSON>, include:
   "customer_phone": "${phoneNumber}",
   "vehicle_number": "...",
   "vehicle_model": "...",
-  "booking_date": "...",
+  "booking_date": "YYYY-MM-DD", // STRICTLY IN YYYY-MM-DD FORMAT ONLY!
   "booking_time": "...",
   "service_category": "mechanical" (or "oil_change" / "detailing" / "wash"),
   "service_package": "...",
@@ -669,7 +684,17 @@ CRITICAL: NEVER write "Bank: Not configured" or "Digital Wallet: Not configured"
 
             if (vNum) customFields.vehicle_number = vNum;
             if (vModel) customFields.vehicle_model = vModel;
-            if (bDate) customFields.booking_date = bDate;
+            if (bDate) {
+              try {
+                const parsed = new Date(bDate);
+                if (!isNaN(parsed.getTime())) {
+                  bDate = parsed.toISOString().split('T')[0];
+                }
+              } catch (e) {
+                // Ignore parse errors, keep original string
+              }
+              customFields.booking_date = bDate;
+            }
             if (bTime) customFields.booking_time = bTime;
 
             const vCat = orderData.vehicle_category || orderData.product_variation || orderData.vehicle_type;
