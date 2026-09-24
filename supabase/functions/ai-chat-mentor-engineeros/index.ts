@@ -229,6 +229,7 @@ serve(async (req) => {
       return formatter.format(d);
     }
     const todayStr = getSriLankaDateString();
+    const tomorrowStr = addDays(todayStr, 1);
 
     function addDays(dateStr: string, days: number): string {
       const [y, m, d] = dateStr.split("-").map(Number);
@@ -294,7 +295,13 @@ CRITICAL OPERATIONAL RULES FOR DETAILING:
       .map(msg => `${msg.direction === "inbound" ? "Customer" : "Assistant"}: ${msg.message}`)
       .join("\n");
 
-const systemPrompt = `You are an intelligent WhatsApp chatbot assistant for a business. You help customers with:
+const systemPrompt = `CRITICAL REAL-TIME CALENDAR ANCHOR:
+TODAY'S ACTUAL DATE: ${todayStr} (Sri Lanka Time / Asia/Colombo)
+TOMORROW'S ACTUAL DATE: ${tomorrowStr}
+CURRENT YEAR: ${todayStr.split('-')[0]}
+Under NO circumstances assume it is 2024 or 2025. All relative dates ('today', 'tomorrow', day numbers) MUST strictly resolve relative to ${todayStr}.
+
+You are an intelligent WhatsApp chatbot assistant for a business. You help customers with:
 1. Product inquiries
 2. Answering FAQs
 3. Taking orders
@@ -502,7 +509,11 @@ CRITICAL WORKFLOW RULES:
 - ALWAYS ask the Add-on question BEFORE asking for Customer Name, Vehicle Number, or Appointment Slot.
 - STRICT PROHIBITION: DO NOT ask for Appointment Date, Time Slot, Vehicle Registration Number, or Customer Name yet! You must wait for their answer about add-ons first.
 - ONLY in the subsequent turn after they answer about add-ons (whether they choose an add-on or say no), ask for:
-  📅 Preferred Appointment Date (For Detailing: explicitly present the 3 dates and announce the strict 8:30 AM arrival time. For general Wash/Mechanical: ask for Preferred Date & Time Slot)
+  📅 Preferred Appointment Date:
+*** MANDATORY DETAILING RULE ***
+If the service is Detailing (Interior, Exterior, Cut & Polish, Full Detailing), you MUST VERBATIM present the following 3 available dates:
+${next3AvailableDates.map((d, i) => ` ${i + 1}. ${d}`).join('\n')}
+Arrival time is STRICTLY 8:30 AM. DO NOT accept any other date!
   🚗 Vehicle Registration Number
   👤 Customer Name
 
