@@ -6,3 +6,4 @@ dist/
 .gemini/
 db/dump.sql
 scratch/
+*.exp

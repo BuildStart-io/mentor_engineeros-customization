@@ -45,7 +45,8 @@ serve(async (req) => {
     if (profilesErr) throw new Error(`Failed to fetch profiles: ${profilesErr.message}`);
 
     // 3. Get global contact usage across ALL schemas via the stored procedure
-    const { data: globalUsage, error: usageErr } = await supabase
+    const supabasePublic = createClient(supabaseUrl, supabaseServiceKey, { db: { schema: 'public' } });
+    const { data: globalUsage, error: usageErr } = await supabasePublic
       .rpc('get_global_contact_usage');
 
     if (usageErr) throw new Error(`Failed to fetch global usage: ${usageErr.message}`);
