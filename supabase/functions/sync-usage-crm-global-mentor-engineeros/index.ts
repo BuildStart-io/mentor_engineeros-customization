@@ -59,8 +59,34 @@ serve(async (req) => {
       }
     }
 
-    // 4. Construct payload
-    const usages = profiles.map(profile => {
+    // 4. Identify the true owner account of this customization
+    // Since profiles are synced across all schemas, we must filter out the dummy profiles.
+    // The true owner is the account that has configured the most business settings locally.
+    const { data: userSettingsData, error: userSettingsErr } = await supabase
+      .schema(SOURCE_SYSTEM).from("settings")
+      .select("user_id");
+
+    if (userSettingsErr) throw new Error(`Failed to fetch settings: ${userSettingsErr.message}`);
+
+    const userCounts: Record<string, number> = {};
+    for (const row of userSettingsData || []) {
+      userCounts[row.user_id] = (userCounts[row.user_id] || 0) + 1;
+    }
+
+    let ownerUserId: string | null = null;
+    let maxCount = 0;
+    for (const [userId, count] of Object.entries(userCounts)) {
+      if (count > maxCount) {
+        maxCount = count;
+        ownerUserId = userId;
+      }
+    }
+
+    // Filter profiles to ONLY the true owner
+    const targetProfiles = ownerUserId ? profiles.filter(p => p.user_id === ownerUserId) : profiles;
+
+    // 5. Construct payload
+    const usages = targetProfiles.map(profile => {
       const baseLimit = getBaseLimit(profile.plan_tier || 'free');
       const addonLimit = profile.addon_contacts || 0;
       const totalAllowed = baseLimit + addonLimit;
