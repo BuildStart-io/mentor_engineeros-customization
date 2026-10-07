@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const CRM_WEBHOOK_URL = "https://project--f10e40b9-a936-4a47-a2fd-95aef668b56f-dev.lovable.app/api/public/receive-usage-sync";
-const SOURCE_SYSTEM = "buildstart-selfhosted";
+const SOURCE_SYSTEM = "mentor_engineeros_customization";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
