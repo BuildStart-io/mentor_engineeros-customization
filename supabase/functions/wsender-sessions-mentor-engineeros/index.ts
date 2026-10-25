@@ -140,9 +140,8 @@ serve(async (req) => {
 
     // WAHA session name locked to the user — slug-safe, deterministic, fits within ~25 chars.
     const sessionName = `u_${userId.replace(/-/g, "").substring(0, 20)}`;
-    // In local docker, WAHA is in the same docker network as supabase-envoy.
-    // The most reliable webhook URL is http://supabase-envoy:8000/functions/v1/webhook-wsender-mentor-engineeros
-    let webhookUrl = "http://supabase-envoy:8000/functions/v1/webhook-wsender-mentor-engineeros";
+    // Dedicated webhook endpoint for Mentor Engineers tenant
+    let webhookUrl = "https://supabase.buildstart.io/functions/v1/webhook-wsender-mentor-engineeros";
     const override = Deno.env.get("WEBHOOK_URL_OVERRIDE");
     if (
       override &&
@@ -150,7 +149,11 @@ serve(async (req) => {
       !override.includes("pump-alignment-surgeons") &&
       !override.includes("central_cab")
     ) {
-      webhookUrl = override;
+      if (override.endsWith("/webhook-wsender")) {
+        webhookUrl = `${override}-mentor-engineeros`;
+      } else if (override.includes("webhook-wsender-mentor-engineeros")) {
+        webhookUrl = override;
+      }
     }
 
     // Helper: store/update mapping in user_wsender_sessions
