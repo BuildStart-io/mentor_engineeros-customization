@@ -156,6 +156,23 @@ async function processMessage(
     (!messageText && messageType !== "text") ||
     (body?.data?.messages?.messageBody === undefined && body?.data?.messages?.message?.conversation === undefined && !messageText);
 
+  // Duplicate protection (E-09): prevent processing identical message received within 5 seconds
+  const fiveSecAgo = new Date(Date.now() - 5000).toISOString();
+  const { data: recentDup } = await supabase
+    .from("conversations")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("phone_number", phoneNumber)
+    .eq("direction", "inbound")
+    .eq("message", messageText || "")
+    .gte("created_at", fiveSecAgo)
+    .limit(1);
+
+  if (recentDup && recentDup.length > 0) {
+    console.log(`[${corrId}] Duplicate inbound message detected from ${phoneNumber}, skipping`);
+    return;
+  }
+
   // 1. Store the incoming message in conversations
   mark("store_inbound_start");
   const { error: insertError } = await supabase.from("conversations").insert({
@@ -184,10 +201,62 @@ async function processMessage(
     supabase, supabaseUrl, supabaseServiceKey, userId, phoneNumber, senderName, sessionApiKey, corrId
   );
 
-
-  // Skip replying to media messages (images, PDFs, videos, etc.)
+  // E-11 & Section 7: Handle media messages (images, PDFs, videos, audio)
   if (isMediaMessage) {
-    console.log(`[${corrId}] Media message (type: ${messageType}) from ${phoneNumber}, stored but not replying`);
+    console.log(`[${corrId}] Media message (type: ${messageType}) from ${phoneNumber}, handling per business rules`);
+    const slTimeFormatter = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Colombo",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const [h, m] = slTimeFormatter.format(new Date()).split(":").map(Number);
+    const isAfter630PM = h > 18 || (h === 18 && m >= 30) || h < 8 || (h === 8 && m < 30);
+
+    const replyText = isAfter630PM
+      ? "Thank you for sharing the images or videos. Our team will review the information and contact you tomorrow after 8:30 AM."
+      : "Thank you for sharing the images or videos. Our team will review the information and contact you.";
+
+    // Store outbound response
+    await supabase.from("conversations").insert({
+      phone_number: phoneNumber,
+      message: replyText,
+      direction: "outbound",
+      message_type: "text",
+      user_id: userId,
+    });
+
+    // Send WhatsApp response to customer
+    mark("send_start");
+    await sendWhatsApp(supabaseUrl, supabaseServiceKey, phoneNumber, replyText, null, sessionApiKey);
+    mark("send_end");
+
+    // Section 6: Customer Issue Notification Workflow for media escalations
+    try {
+      const { data: notifSettings } = await supabase
+        .from("settings")
+        .select("value")
+        .eq("key", "order_notifications")
+        .eq("user_id", userId)
+        .single();
+
+      const ownerPhone = notifSettings?.value?.phone;
+      if (ownerPhone) {
+        let mediaRef = body?.data?.messages?.message?.imageMessage?.url 
+          || body?.data?.messages?.message?.videoMessage?.url 
+          || body?.data?.messages?.message?.audioMessage?.url 
+          || body?.data?.messages?.mediaUrl 
+          || `Media (${messageType})`;
+
+        const notifMessage = `📷 MEDIA ATTACHMENT ESCALATION\n👤 ${senderName || "Customer"}\n📱 ${phoneNumber}\n🕒 Time: ${slTimeFormatter.format(new Date())} (Asia/Colombo)\n📎 Type: ${messageType}\n🔗 Attachment: ${mediaRef}\n💬 Note: Customer sent media requiring team review.`;
+
+        await sendWhatsApp(supabaseUrl, supabaseServiceKey, ownerPhone, notifMessage, null, sessionApiKey);
+        console.log(`[${corrId}] Media escalation alert sent to owner ${ownerPhone}`);
+      }
+    } catch (err) {
+      console.error(`[${corrId}] Error sending media escalation alert:`, err);
+    }
+
     return;
   }
 

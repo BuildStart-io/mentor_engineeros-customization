@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mentor Engineers - WhatsApp Send-Report API Specification</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 12mm 14mm 12mm 14mm;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #1e293b;
+      background: #ffffff;
+      line-height: 1.42;
+      font-size: 11.5px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page-break {
+      page-break-before: always;
+    }
+
+    /* Header */
+    .header {
+      border-bottom: 2.5px solid #2563eb;
+      padding-bottom: 8px;
+      margin-bottom: 11px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .header-left h1 {
+      font-size: 20px;
+      color: #0f172a;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+      line-height: 1.2;
+    }
+
+    .header-left .subtitle {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 2px;
+      font-weight: 500;
+    }
+
+    .header-right {
+      text-align: right;
+      font-size: 10px;
+      color: #64748b;
+      line-height: 1.4;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 2.5px 7px;
+      border-radius: 4px;
+      font-size: 9.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .badge-primary { background: #dbeafe; color: #1e40af; }
+    .badge-success { background: #dcfce7; color: #166534; }
+    .badge-warning { background: #fef3c7; color: #92400e; }
+    .badge-dark { background: #e2e8f0; color: #334155; }
+
+    /* Section Headings */
+    h2 {
+      font-size: 13px;
+      color: #0f172a;
+      border-left: 3.5px solid #2563eb;
+      padding-left: 7px;
+      margin: 11px 0 5px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      font-weight: 700;
+    }
+
+    h3 {
+      font-size: 11.5px;
+      color: #1e293b;
+      margin: 6px 0 2px 0;
+      font-weight: 600;
+    }
+
+    p {
+      margin-bottom: 5px;
+      color: #334155;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 5px 0 8px 0;
+      font-size: 11px;
+    }
+
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 5px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f1f5f9;
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    tr:nth-child(even) {
+      background: #f8fafc;
+    }
+
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      background: #f1f5f9;
+      padding: 1.5px 4px;
+      border-radius: 3px;
+      font-size: 10.5px;
+      color: #0f172a;
+      border: 1px solid #e2e8f0;
+    }
+
+    pre {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 7px 10px;
+      border-radius: 4px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 10px;
+      line-height: 1.35;
+      margin: 3px 0 6px 0;
+      border: 1px solid #1e293b;
+    }
+
+    /* Endpoints Box */
+    .endpoint-box {
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 5px;
+      padding: 6px 10px;
+      margin: 6px 0 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .method {
+      background: #059669;
+      color: #ffffff;
+      padding: 2.5px 7px;
+      border-radius: 3px;
+      font-weight: 700;
+      font-size: 9.5px;
+      letter-spacing: 0.5px;
+    }
+
+    .method-get {
+      background: #2563eb;
+    }
+
+    .endpoint-url {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 11.5px;
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    /* Alerts */
+    .alert {
+      padding: 7px 10px;
+      border-radius: 5px;
+      margin: 7px 0;
+      font-size: 11px;
+      line-height: 1.42;
+    }
+
+    .alert-info {
+      background: #eff6ff;
+      border-left: 3.5px solid #3b82f6;
+      color: #1e40af;
+    }
+
+    .alert-warning {
+      background: #fffbeb;
+      border-left: 3.5px solid #f59e0b;
+      color: #92400e;
+    }
+
+    /* Step Cards / Workflow */
+    .workflow-grid {
+      display: flex;
+      gap: 8px;
+      margin: 6px 0 9px 0;
+    }
+
+    .workflow-card {
+      flex: 1;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 5px;
+      padding: 6px 8px;
+    }
+
+    .workflow-card .step-num {
+      font-weight: 700;
+      color: #2563eb;
+      font-size: 9.5px;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .workflow-card .step-title {
+      font-weight: 600;
+      color: #0f172a;
+      font-size: 11px;
+      margin-bottom: 2px;
+    }
+
+    .workflow-card .step-desc {
+      font-size: 9.5px;
+      color: #64748b;
+      line-height: 1.3;
+    }
+
+    /* Grid Layouts */
+    .grid-2 {
+      display: flex;
+      gap: 10px;
+    }
+
+    .grid-2 > div {
+      flex: 1;
+    }
+
+    /* Footer */
+    .footer {
+      border-top: 1px solid #e2e8f0;
+      padding-top: 6px;
+      display: flex;
+      justify-content: space-between;
+      color: #94a3b8;
+      font-size: 9px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===================================================================
+       PAGE 1: OVERVIEW, ENDPOINT, HEADERS, PARAMS, WORKFLOW & PAYLOADS
+  =================================================================== -->
+  <div class="header">
+    <div class="header-left">
+      <h1>Mentor Engineers - Auto Service Center</h1>
+      <div class="subtitle">External WhatsApp Send-Report API Specification & Integration Guide</div>
+    </div>
+    <div class="header-right">
+      <div><strong>Environment:</strong> Production Gateway</div>
+      <div><strong>Standard:</strong> RESTful JSON / GET API</div>
+      <div><span class="badge badge-success">Active & Verified</span> &bull; <span class="badge badge-dark">v2.0 (Audited)</span></div>
+    </div>
+  </div>
+
+  <!-- Section 1 -->
+  <h2>1. Overview & System Architecture</h2>
+  <p>
+    The <code>send-report-mentor-engineeros</code> API provides external billing software, Point-of-Sale (POS) terminals, enterprise ERPs, and diagnostic scanners with a direct, authenticated gateway to dispatch vehicle inspection reports, customer invoices, repair estimates, and service alerts via the official <strong>Mentor Engineers WhatsApp Business Account</strong>.
+  </p>
+
+  <div class="alert alert-info">
+    <strong>Core Capabilities & Features:</strong>
+    <ul style="margin-left: 18px; margin-top: 3px;">
+      <li><strong>Real-time Dashboard Audit Trail:</strong> Every sent message and PDF is instantly archived into the workshop conversations database for customer service staff to review in real time.</li>
+      <li><strong>Direct WhatsApp Delivery:</strong> High-performance instant delivery directly into customer WhatsApp chats without intermediary third-party delays.</li>
+      <li><strong>Flexible Input Formats:</strong> Supports JSON payloads, multipart/URL-encoded form data, and standard GET query parameters.</li>
+      <li><strong>Automatic Phone Normalization:</strong> Automatically handles Sri Lankan 10-digit mobile numbers (e.g. <code>074...</code> is automatically converted to international standard <code>9474...</code>).</li>
+      <li><strong>Batch Dispatch:</strong> Supports sending to multiple phone numbers (up to 15 per request) in a single API invocation.</li>
+    </ul>
+  </div>
+
+  <!-- Section 2 -->
+  <h2>2. Production Endpoints & Authentication</h2>
+  <div class="endpoint-box">
+    <span class="method">POST</span>
+    <span class="method method-get">GET</span>
+    <span class="endpoint-url">https://supabase.buildstart.io/functions/v1/send-report-mentor-engineeros</span>
+  </div>
+
+  <h3>Required HTTP Request Headers:</h3>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 25%;">Header Name</th>
+        <th style="width: 38%;">Header Value</th>
+        <th style="width: 37%;">Description & Security Rules</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>Authorization</code></td>
+        <td><code>Bearer BqYyRuLErSkzhymBZmfGrTZhFPhdmX</code></td>
+        <td>Mandatory Bearer API key authentication token.</td>
+      </tr>
+      <tr>
+        <td><code>Content-Type</code></td>
+        <td><code>application/json</code></td>
+        <td>Required for POST requests when sending JSON payload bodies.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Section 3 -->
+  <h2>3. Request Parameters Reference</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 20%;">Field Name</th>
+        <th style="width: 14%;">Type</th>
+        <th style="width: 13%;">Required?</th>
+        <th style="width: 53%;">Description & Validation Rules</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>number</code> / <code>numbers</code></td>
+        <td>String / Array</td>
+        <td><span class="badge badge-warning">Required</span></td>
+        <td>Recipient phone number (e.g. <code>"94778428102"</code> or <code>"0778428102"</code>). Comma-separated string or JSON array for bulk (max 15 numbers).</td>
+      </tr>
+      <tr>
+        <td><code>message</code></td>
+        <td>String</td>
+        <td>Optional*</td>
+        <td>Text message body or document caption. Optional if <code>document_url</code> is supplied.</td>
+      </tr>
+      <tr>
+        <td><code>document_url</code></td>
+        <td>String / Array</td>
+        <td>Optional*</td>
+        <td>Direct public URL of PDF, Image, or Document (Aliases: <code>file_url</code>, <code>url</code>, <code>pdf_url</code>). Must start with <code>http://</code> or <code>https://</code>.</td>
+      </tr>
+      <tr>
+        <td><code>sessionId</code></td>
+        <td>String</td>
+        <td>Optional</td>
+        <td>Custom session identifier for multi-account routing. Defaults to Mentor Engineers business profile.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="font-size: 10px; color: #64748b;"><em>*Note: Either <code>message</code> or <code>document_url</code> (or both) must be present in the request payload.</em></p>
+
+  <!-- Section 4 (Workflow) -->
+  <h2>4. End-to-End Delivery Sequence</h2>
+  <div class="workflow-grid">
+    <div class="workflow-card">
+      <div class="step-num">Step 1</div>
+      <div class="step-title">Trigger API</div>
+      <div class="step-desc">Billing or ERP software sends POST request with recipient number and PDF report link.</div>
+    </div>
+    <div class="workflow-card">
+      <div class="step-num">Step 2</div>
+      <div class="step-title">Authentication</div>
+      <div class="step-desc">API verifies the Bearer token and validates phone formatting & batch limits.</div>
+    </div>
+    <div class="workflow-card">
+      <div class="step-num">Step 3</div>
+      <div class="step-title">WhatsApp Dispatch</div>
+      <div class="step-desc">Document and caption are delivered straight to customer WhatsApp chat.</div>
+    </div>
+    <div class="workflow-card">
+      <div class="step-num">Step 4</div>
+      <div class="step-title">Audit Logging</div>
+      <div class="step-desc">Delivery record is saved into conversations table for workshop staff visibility.</div>
+    </div>
+  </div>
+
+  <!-- Section 5 Part A: Core JSON & cURL Payloads on Page 1 to fill height -->
+  <h2>5. Core Payload Specifications (JSON & cURL)</h2>
+  <div class="grid-2">
+    <div>
+      <h3>A. Vehicle Inspection PDF with Caption</h3>
+      <pre>{
+  "number": "94740237915",
+  "document_url": "https://example.com/inspection.pdf",
+  "message": "Inspection report for WP-CAB-1234 is ready."
+}</pre>
+    </div>
+    <div>
+      <h3>B. Plain Text Service Ready Alert</h3>
+      <pre>{
+  "number": "94740237915",
+  "message": "Dear Sir, vehicle service completed. Car ready for pickup."
+}</pre>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <h3>C. Multiple Documents (Batch Attachments)</h3>
+      <pre>{
+  "number": "94740237915",
+  "document_url": "https://example.com/diagnostic.pdf, https://example.com/bill.pdf",
+  "message": "Diagnostic Report & Service Bill attached."
+}</pre>
+    </div>
+    <div>
+      <h3>D. cURL Command Line Integration</h3>
+      <pre>curl -X POST "https://supabase.buildstart.io/functions/v1/send-report-mentor-engineeros" \
+  -H "Authorization: Bearer BqYyRuLErSkzhymBZmfGrTZhFPhdmX" \
+  -H "Content-Type: application/json" \
+  -d '{"number":"94740237915","document_url":"https://example.com/bill.pdf","message":"Bill attached."}'</pre>
+    </div>
+  </div>
+
+  <!-- Footer Page 1 -->
+  <div class="footer">
+    <div>Mentor Engineers Auto Service Center &copy; 2026. Official Engineering Specification.</div>
+    <div>Page 1 of 2</div>
+  </div>
+
+  <!-- ===================================================================
+       PAGE 2: PROGRAMMING CODE, RESPONSES, ERRORS, PRIVACY & CHECKLIST
+  =================================================================== -->
+  <div class="page-break"></div>
+
+  <h2>6. Programming Language Integration Code</h2>
+
+  <div class="grid-2">
+    <div>
+      <h3>A. Python Integration Snippet</h3>
+      <pre>import requests
+
+url = "https://supabase.buildstart.io/functions/v1/send-report-mentor-engineeros"
+headers = {
+    "Authorization": "Bearer BqYyRuLErSkzhymBZmfGrTZhFPhdmX",
+    "Content-Type": "application/json"
+}
+payload = {
+    "number": "94740237915",
+    "document_url": "https://example.com/invoice.pdf",
+    "message": "Mentor Engineers: Vehicle bill ready."
+}
+res = requests.post(url, json=payload, headers=headers)
+print(res.status_code, res.json())</pre>
+    </div>
+    <div>
+      <h3>B. PHP Integration Snippet (ERP & Billing Systems)</h3>
+      <pre>&lt;?php
+$payload = [
+    "number" => "94740237915",
+    "document_url" => "https://example.com/invoice.pdf",
+    "message" => "Invoice for vehicle CAB-1234."
+];
+$ch = curl_init("https://supabase.buildstart.io/functions/v1/send-report-mentor-engineeros");
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    "Authorization: Bearer BqYyRuLErSkzhymBZmfGrTZhFPhdmX",
+    "Content-Type: application/json"
+]);
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$result = curl_exec($ch);
+curl_close($ch);
+?&gt;</pre>
+    </div>
+  </div>
+
+  <h3>C. Node.js / JavaScript (Fetch API)</h3>
+  <pre>const response = await fetch("https://supabase.buildstart.io/functions/v1/send-report-mentor-engineeros", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer BqYyRuLErSkzhymBZmfGrTZhFPhdmX",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    number: "94740237915",
+    document_url: "https://example.com/invoice.pdf",
+    message: "Dear customer, your vehicle service invoice is ready."
+  })
+});
+const result = await response.json();
+console.log(result);</pre>
+
+  <h2>7. API Response Specifications & Error Codes</h2>
+  <div class="grid-2">
+    <div>
+      <h3>Success Response (HTTP 200 OK):</h3>
+      <pre>{
+  "success": true,
+  "message": "Processed 1 numbers. Sent: 1, Failed: 0",
+  "details": [
+    { "number": "94740237915", "success": true }
+  ]
+}</pre>
+    </div>
+    <div>
+      <h3>Failure Response Example (HTTP 400 Bad Request):</h3>
+      <pre>{
+  "success": false,
+  "error": "Batch limit exceeded: Maximum 15 numbers allowed per request (received 18)."
+}</pre>
+    </div>
+  </div>
+
+  <h3>HTTP Status Codes & Resolution Guide:</h3>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 14%;">HTTP Code</th>
+        <th style="width: 25%;">Error Type</th>
+        <th style="width: 61%;">Root Cause & Resolution Guide</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>200 OK</code></td>
+        <td>Success</td>
+        <td>Request processed successfully. Check <code>details</code> array for per-recipient status.</td>
+      </tr>
+      <tr>
+        <td><code>401</code></td>
+        <td>Unauthorized</td>
+        <td>Missing or invalid <code>Authorization: Bearer ...</code> header. Verify your API token.</td>
+      </tr>
+      <tr>
+        <td><code>400</code></td>
+        <td>Batch Limit Exceeded</td>
+        <td>Maximum 15 numbers allowed per request. Split larger recipient batches into chunks of 15.</td>
+      </tr>
+      <tr>
+        <td><code>400</code></td>
+        <td>Invalid Document URL</td>
+        <td>Document URL must be public and start with <code>http://</code> or <code>https://</code>.</td>
+      </tr>
+      <tr>
+        <td><code>400</code></td>
+        <td>Missing Payload</td>
+        <td>Both <code>message</code> and <code>document_url</code> are missing. Provide at least one valid field.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>8. Data Storage Architecture & Privacy Policy</h2>
+  <div class="alert alert-warning">
+    <strong>Storage Architecture & Document Privacy:</strong>
+    <p style="margin-top: 3px;">
+      The <code>send-report</code> API streams the document directly from your public URL to WhatsApp. The binary document file is <strong>not stored</strong> on the server hard disk or database, preventing storage bloat and ensuring strict customer privacy. Only the delivery audit record (recipient phone, timestamp, caption, and URL reference) is securely logged in the workshop's private database for staff reference.
+    </p>
+  </div>
+
+  <h2>9. Developer Best Practices & Delivery Checklist</h2>
+  <div class="alert alert-info">
+    <strong>Integration Checklist:</strong>
+    <ul style="margin-left: 18px; margin-top: 3px;">
+      <li><strong>Direct Public Links:</strong> Ensure document URLs point directly to the binary file (e.g. <code>.pdf</code> or <code>.png</code>) and are publicly reachable without requiring logins or CAPTCHAs.</li>
+      <li><strong>Delivery Verification:</strong> Always inspect the returned <code>details</code> array in the response to confirm individual recipient delivery status.</li>
+      <li><strong>Backoff & Retries:</strong> If sending multiple batches, add a 1-second delay between consecutive requests to ensure smooth delivery.</li>
+    </ul>
+  </div>
+
+  <!-- Footer Page 2 -->
+  <div class="footer">
+    <div>Mentor Engineers Auto Service Center &copy; 2026. Official Engineering Specification.</div>
+    <div>Page 2 of 2</div>
+  </div>
+
+</body>
+</html>
