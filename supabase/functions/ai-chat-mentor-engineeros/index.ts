@@ -286,25 +286,41 @@ serve(async (req) => {
       checkDateStr = addDays(checkDateStr, 1);
     }
 
+    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const formatted3Dates = next3AvailableDates.map(d => {
+      const [y, m, day] = d.split("-").map(Number);
+      const dt = new Date(Date.UTC(y, m - 1, day, 12, 0, 0));
+      return `${d} (${dayNames[dt.getUTCDay()]})`;
+    });
+
     const holidayRulesContext = `
 [DETAILING_SERVICE_AVAILABILITY]
 Current Date in Sri Lanka: ${todayStr}
 Current Time in Sri Lanka: ${currentTimeStr}
 Time Restriction Window: ${isAfter630PM ? "AFTER 6:30 PM (STRICT RESTRICTION ACTIVE: NO BOOKINGS, NO INSTRUCTIONS, NEXT-DAY ESCALATION ONLY)" : "OPERATIONAL HOURS (Before 6:30 PM)"}
-Booked Dates (Max 1 Car/Day): ${bookedDates.length > 0 ? bookedDates.join(", ") : "None currently booked"}
+Booked Dates (MAX 1 CAR PER DAY - FULLY BOOKED DATES): ${bookedDates.length > 0 ? bookedDates.join(", ") : "None currently booked"}
 Tuesdays are ALWAYS closed for detailing.
 Poya days are ALWAYS closed.
 Bridge days between Tuesday and Poya are closed.
 
 THE NEXT 3 AVAILABLE DATES FOR DETAILING ARE:
-${next3AvailableDates.map((d, i) => ` ${i + 1}. ${d}`).join("\n")}
+${formatted3Dates.map((d, i) => `  ${i + 1}. ${d}`).join("\n")}
 
 CRITICAL OPERATIONAL RULES FOR DETAILING:
-1. STRICT TIME SLOT: Detailing is a comprehensive full-day service taking 8+ hours. Vehicle drop-off time is STRICTLY 8:30 AM.
-2. DO NOT ASK CUSTOMERS FOR A TIME SLOT! Customers NEVER choose a time slot for detailing.
-3. When suggesting dates, you MUST state the 3 dates AND inform the customer that arrival is at 8:30 AM:
-   - English: "Sir / Madam, our next available dates for Detailing are: [Date 1], [Date 2], or [Date 3]. As detailing is a full-day process, vehicle drop-off is strictly at 8:30 AM. Which date would you prefer?"
-4. If the customer proposes an unlisted, booked, Tuesday, or Poya date, politely reject it and re-iterate the 3 available dates.
+1. STRICT 1 VEHICLE PER DAY RULE: Detailing is a comprehensive full-day service (8+ hours). Only ONE vehicle can be booked per day.
+2. STRICT TIME SLOT: Vehicle drop-off time is STRICTLY 08:30 AM at our workshop. Customers NEVER choose a time slot.
+3. MANDATORY 3 AVAILABLE DATES PRESENTATION: When asking for a booking date, you MUST explicitly state the 3 available dates:
+   - English: "Sir / Madam, our next available dates for Detailing are:
+${formatted3Dates.map((d, i) => `     🔹 ${i + 1}. ${d}`).join("\n")}
+     As detailing is a full-day process (8+ hours), drop-off is strictly at 08:30 AM at our workshop. Which date would you prefer?"
+   - Sinhala: "සර් / මැඩම්, Detailing සඳහා අප සතු ඉදිරි දිනයන් 3:
+${formatted3Dates.map((d, i) => `     🔹 ${i + 1}. ${d}`).join("\n")}
+     Detailing සඳහා දිනකට එක් වාහනයක් පමණක් භාර ගන්නා අතර, වාහනය උදෑසන 8:30 ට අපගේ වැඩපොළට භාර දිය යුතුය. ඔබ කැමති දිනය කුමක්ද?"
+4. STRICT REJECTION OF UNAVAILABLE / BOOKED DATES:
+   If the customer proposes ANY date that is already booked (${bookedDates.length > 0 ? bookedDates.join(", ") : "None"}), a Tuesday, a Poya day, or not in the available list:
+   YOU MUST POLITELY REJECT THAT DATE! Explain that only 1 car per day is accepted and that date is already fully booked.
+   Then re-present the 3 available dates above and ask them to choose one of those 3.
+   NEVER accept a booked date or generate a summary for an unavailable date!
 5. In <ORDER_JSON>, always set "booking_time": "08:30 AM" for Detailing.
 `;
 
@@ -527,8 +543,74 @@ CURRENT TIME IN SRI LANKA: ${currentTimeStr} (${isAfter630PM ? "AFTER 6:30 PM RE
        - If customer replies "1", "2", or selects an add-on:
          -> IMMEDIATELY acknowledge the selected add-on, update total, and MOVE FORWARD!
        -> STRICT PROHIBITION: NEVER ask or repeat the add-on question more than ONCE! If you have asked it once, you are strictly FORBIDDEN from asking it again!
-     Step 5 (Booking Finalization):
-       - IF Before 6:30 PM: Present the 3 available dates (strictly 8:30 AM drop-off), collect Customer Name and Vehicle Number, and confirm with <ORDER_JSON> when confirmed.
+     Step 5 (Booking Date Selection & Details Collection - Daytime Before 6:30 PM):
+       - When add-ons are chosen or declined, you MUST IMMEDIATELY present the next 3 available dates:
+         • English template:
+           "Thank you for confirming. I will now proceed with the [Package Name] for your [Vehicle Model]. 🚗✨
+           
+           Sir / Madam, our next available dates for Detailing are:
+${formatted3Dates.map((d, i) => `           🔹 Option ${i + 1}: ${d}`).join("\n")}
+           
+           ⚠️ Please note: As detailing is a comprehensive full-day service (8+ hours), we strictly accept only ONE vehicle per day, and vehicle drop-off is strictly at 08:30 AM at our workshop in Piliyandala.
+           
+           To schedule your booking, please let us know:
+           ✅ Which date you prefer (Option 1, 2, or 3)
+           ✅ Your Full Name
+           ✅ Vehicle Registration Number (e.g. WP CAA-1234)"
+           
+         • Sinhala template:
+           "තහවුරු කිරීම ගැන ස්තුතියි. ඔබගේ [Vehicle Model] රථය සඳහා [Package Name] පැකේජය සමඟ ඉදිරියට යමු. 🚗✨
+           
+           සර් / මැඩම්, Detailing සඳහා අප සතු ඉදිරි දිනයන් 3:
+${formatted3Dates.map((d, i) => `           🔹 දිනය ${i + 1}: ${d}`).join("\n")}
+           
+           ⚠️ කරුණාකර සලකන්න: Detailing සේවාව සඳහා දිනකට වෙන් කරනු ලබන්නේ එක් වාහනයක් පමණක් වන අතර, වාහනය උදෑසන 8:30 ට අපගේ වැඩපොළට භාර දිය යුතුය.
+           
+           වෙන් කරවා ගැනීම සඳහා කරුණාකර පහත තොරතුරු ලබා දෙන්න:
+           ✅ ඔබ කැමති දිනය (1, 2 හෝ 3)
+           ✅ ඔබගේ සම්පූර්ණ නම
+           ✅ වාහන ලියාපදිංචි අංකය"
+
+       STRICT RULES:
+       1. NEVER ask an open-ended "Preferred Booking Date" without listing the 3 dates!
+       2. NEVER say "We are open Monday to Saturday" for detailing bookings!
+       3. If the customer requests ANY date other than the 3 available dates (or proposes a date that is already booked, e.g. ${bookedDates.join(", ") || "None"}):
+          POLITELY REJECT IT: State that that date is unavailable because only 1 vehicle per day is accepted, and re-present the 3 available dates.
+          DO NOT accept an unavailable date under any circumstances!
+
+     Step 6 (Order Summary Presentation):
+       Once Customer Name, Vehicle Number, and one of the 3 available dates are provided:
+       Present the Order Summary:
+       "Hello Sir / Madam! 🤝 Thank you for the details. Here is your Order Summary for the booking:
+       📦 Items: [Package Name]
+       💰 Total: LKR [Price]
+       🚚 Delivery: Vehicle Drop-off at 08:30 AM
+       💳 Payment: At workshop counter (Cash or Card)
+       ✅ Customer Name: [Name]
+       ✅ Vehicle Number: [Vehicle Reg]
+       ✅ Booking Date: [YYYY-MM-DD]
+       ✅ Time: 08:30 AM
+       
+       Sir / Madam, shall I confirm this booking for you? 🎯"
+
+       CRITICAL: In this summary turn, DO NOT output <ORDER_JSON>! You are asking for confirmation.
+
+     Step 7 (Final Confirmation & Booking ID):
+       ONLY AFTER the customer explicitly confirms (e.g. "Yes", "Confirm", "ඔව්", "හරි"):
+       Confirm the booking:
+       "Hello Sir / Madam! 🤝 Thank you! Your booking has been confirmed successfully. 🎯
+       📦 Items: [Package Name]
+       💰 Total: LKR [Price]
+       🚚 Delivery: Vehicle Drop-off at 08:30 AM
+       💳 Payment: At workshop counter (Cash or Card)
+       ✅ Booking Date: [YYYY-MM-DD]
+       ✅ Booking ID: BK-[Random 4 Digits]
+       
+       We look forward to seeing you at our workshop in Piliyandala at 08:30 AM. 🚗✨"
+       
+       AND append <ORDER_JSON>...</ORDER_JSON> at the very end of your response!
+
+     Step 8 (After-Hours Lead Capture - After 6:30 PM):
        - IF After 6:30 PM:
          Explain: "Since it is currently after 6:30 PM, our booking system is offline. Our team will review your request and contact you tomorrow morning after 8:30 AM to finalize the booking date."
          Ask: "Could you please provide your Name and Vehicle Registration Number so our team can contact you tomorrow?"
@@ -807,7 +889,16 @@ CRITICAL: NEVER write "Bank: Not configured" or "Digital Wallet: Not configured"
     // Check if the AI response contains order JSON
     let orderCreated = false;
     const orderJsonMatches = [...responseText.matchAll(/<ORDER_JSON>([\s\S]*?)<\/ORDER_JSON>/g)];
-    for (const orderJsonMatch of orderJsonMatches) {
+
+    // Check if the current turn is merely asking the customer for confirmation
+    const isAskingConfirmation = /shall\s+i\s+confirm|confirm\s+this\s+booking|confirm\s+this\s+order|would\s+you\s+like\s+to\s+confirm|තහවුරු\s+කරන්නද|confirm\s+කරන්නද/i.test(responseText);
+    const isCustomerConfirming = /^(yes|yeah|yep|ok|okay|confirm|please confirm|proceed|correct|right|done|sure|yes please|yes confirm|ok confirm|ඔව්|හරි|තහවුරු කරන්න|එසේය|ඕකේ)\b/i.test(trimmedMessage.trim()) ||
+      /\b(confirm|confirmed|තහවුරු|හරි)\b/i.test(trimmedMessage);
+
+    if (isAskingConfirmation && !isCustomerConfirming) {
+      console.log("Order summary is being presented to customer; suppressing premature order creation until customer confirms.");
+    } else {
+      for (const orderJsonMatch of orderJsonMatches) {
       if (ordersLimitReached) {
         console.log(`Orders limit reached for user ${userId}: ${ordersCount}/${ordersLimit}`);
       } else {
@@ -911,6 +1002,37 @@ CRITICAL: NEVER write "Bank: Not configured" or "Digital Wallet: Not configured"
             if (serviceCategory !== "detailing") {
               console.log(`Order rejected: Bookings are strictly available only for Detailing Packages, rejected: ${serviceCategory || sPkg}`);
               continue;
+            }
+
+            // Core Business Rule: Strictly MAX 1 vehicle per day for Detailing!
+            // Check if this date already has an active Detailing booking
+            if (serviceCategory === "detailing" && bDate) {
+              const { data: existingBookings, error: checkError } = await supabase
+                .from("orders")
+                .select("id, custom_fields")
+                .eq("user_id", userId)
+                .not("status", "eq", "cancelled");
+
+              if (!checkError && existingBookings && existingBookings.length > 0) {
+                const isDateAlreadyBooked = existingBookings.some((o: any) => {
+                  const cf = o.custom_fields as Record<string, any>;
+                  const cat = (cf?.service_category || "").toLowerCase();
+                  if (cat !== "detailing") return false;
+                  let existingDate = cf?.booking_date;
+                  if (existingDate) {
+                    try {
+                      const p = new Date(existingDate);
+                      if (!isNaN(p.getTime())) existingDate = p.toISOString().split("T")[0];
+                    } catch {}
+                  }
+                  return existingDate === bDate;
+                });
+
+                if (isDateAlreadyBooked) {
+                  console.warn(`[BOOKING CONFLICT BLOCKED] Detailing on ${bDate} is already booked. Rejecting duplicate booking.`);
+                  continue; // Block inserting duplicate order
+                }
+              }
             }
 
             // Force 8:30 AM default for detailing
@@ -1055,6 +1177,7 @@ CRITICAL: NEVER write "Bank: Not configured" or "Digital Wallet: Not configured"
         }
       }
     }
+  }
 
     // Handle Customer Issue Escalations (PDF Section 6, Core Rules 2.1, 2.2, E-12)
     const issueJsonMatches = [...responseText.matchAll(/<CUSTOMER_ISSUE_JSON>([\s\S]*?)<\/CUSTOMER_ISSUE_JSON>/g)];
