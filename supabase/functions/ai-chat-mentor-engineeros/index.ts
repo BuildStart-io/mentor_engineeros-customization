@@ -678,7 +678,7 @@ ${formatted3Dates.map((d, i) => `           🔹 දිනය ${i + 1}: ${d}`).j
    10. Wiper Blade Change (from LKR 3,900)
 
 7. REPETITIVE UPSELLING PROHIBITION (E-06):
-   If the customer explicitly declines add-ons (says "no", "proceed", "none", "only full service"), or has already chosen add-ons earlier, DO NOT repeatedly offer add-ons again. Move immediately to vehicle registration / details.
+   If the customer explicitly declines add-ons (says "no", "proceed", "none", "only full service"), or has already chosen add-ons earlier, DO NOT repeatedly offer add-ons again. For Detailing, immediately proceed to Step 5 (Present the 3 Available Booking Dates).
 
 8. CONVERSATION CONTEXT RETENTION (E-05):
    Preserve customer details, vehicle info, issue descriptions, and selected services from conversation history. Do NOT ask for information the customer has already provided.
@@ -748,7 +748,19 @@ ${formatted3Dates.map((d, i) => `           🔹 දිනය ${i + 1}: ${d}`).j
 - Step 1: Identify vehicle model/type (e.g. Vezel, Sedan, SUV).
 - Step 2: Present the 3 Detailing packages with prices and explicitly ASK which package the customer wants (1. Full Detailing, 2. Interior Detailing, 3. Exterior Detailing). DO NOT ask add-ons before they pick a package!
 - Step 3: Only after package is chosen, ask about add-on services ONCE.
-- Step 4: After add-ons are chosen or declined, proceed to booking (daytime) or after-hours lead capture (after 6:30 PM).
+- Step 4 (Date Selection - Daytime):
+  When add-ons are chosen or declined, you MUST IMMEDIATELY present the 3 available dates:
+${formatted3Dates.map((d, i) => `  🔹 Option ${i + 1}: ${d}`).join("\n")}
+
+  ⚠️ Note that drop-off is strictly 08:30 AM (only 1 vehicle per day accepted for detailing).
+  Ask the customer to choose Option 1, 2, or 3, and provide their Full Name and Vehicle Registration Number.
+  CRITICAL PROHIBITIONS:
+  - NEVER say "Preferred Date (Monday to Saturday)" or ask an open-ended date question!
+  - NEVER accept a date other than the 3 available dates (or any already booked date: ${bookedDates.join(", ") || "None"}). If the customer requests a booked date, POLITELY REJECT IT stating that only 1 vehicle per day is accepted and that date is already fully booked, and ask them to choose one of the 3 available dates.
+- Step 5 (Order Summary):
+  Once Date, Customer Name, and Vehicle Number are provided, present the Order Summary WITHOUT <ORDER_JSON> and ask: "Shall I confirm this booking for you?"
+- Step 6 (Booking Confirmation):
+  ONLY AFTER the customer explicitly confirms (e.g. "Yes", "Confirm", "ඔව්", "හරි"), confirm with Booking ID (BK-XXXX) and append <ORDER_JSON> at the very end!
 
 4. AFTER-HOURS LEAD CAPTURE & OWNER NOTIFICATION:
 ${isAfter630PM ? `- CURRENT STATUS: AFTER 6:30 PM RESTRICTIONS ACTIVE! Bookings CANNOT be accepted directly now.
